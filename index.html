@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Neon Vault - магазин цифровых товаров: коды, файлы, пресеты, доступы и цифровые наборы."
+      content="KURSANT.SHOP - магазин цифровых товаров: коды, файлы, доступы и цифровые наборы."
     />
-    <title>Neon Vault | Digital Goods</title>
+    <title>KURSANT.SHOP | Digital Goods</title>
     <link rel="preconnect" href="https://www.gstatic.com" />
     <link rel="stylesheet" href="styles.css" />
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
@@ -18,23 +18,30 @@
     <canvas id="ambient-canvas" aria-hidden="true"></canvas>
 
     <header class="topbar">
-      <a class="brand" href="#store" aria-label="Neon Vault">
-        <span class="brand-mark">NV</span>
+      <a class="brand" href="#store" aria-label="KURSANT.SHOP">
+        <span class="brand-mark">KS</span>
         <span>
-          <strong>Neon Vault</strong>
+          <strong>KURSANT.SHOP</strong>
           <small>digital goods</small>
         </span>
       </a>
 
       <nav class="nav" aria-label="Основная навигация">
-        <a href="#store">Витрина</a>
-        <a href="#deals">Дропы</a>
-        <a href="#admin">Админ</a>
+        <a href="#store" data-route="store">Витрина</a>
+        <a href="#drops" data-route="drops">Дропы</a>
+        <a href="#admin" data-route="admin" id="admin-nav" hidden>Админ</a>
       </nav>
 
       <div class="top-actions">
         <button class="icon-button" id="theme-toggle" type="button" aria-label="Сменить яркость" title="Сменить яркость">
           <i data-lucide="contrast"></i>
+        </button>
+        <button class="user-button" id="open-auth" type="button">
+          <i data-lucide="user"></i>
+          <span id="auth-label">Войти</span>
+        </button>
+        <button class="icon-button" id="logout" type="button" aria-label="Выйти" title="Выйти" hidden>
+          <i data-lucide="log-out"></i>
         </button>
         <button class="cart-button" id="open-cart" type="button">
           <i data-lucide="shopping-bag"></i>
@@ -45,200 +52,220 @@
     </header>
 
     <main>
-      <section class="hero" id="store">
-        <div class="hero-copy">
-          <span class="eyebrow">Spark-ready storefront</span>
-          <h1>Магазин кодов, файлов и цифровых наборов</h1>
-          <p>
-            Темная витрина с живым каталогом, загрузкой файлов через админ-панель,
-            заявками на покупку и Firebase-деплоем без платных серверных функций.
-          </p>
-          <div class="hero-actions">
-            <a class="primary-link" href="#catalog">
-              <i data-lucide="zap"></i>
-              В каталог
-            </a>
-            <a class="ghost-link" href="#admin">
-              <i data-lucide="shield-check"></i>
-              Панель продавца
-            </a>
+      <section class="page active" id="page-store" data-page="store">
+        <section class="hero">
+          <div class="hero-copy">
+            <span class="eyebrow">secure digital storefront</span>
+            <h1>KURSANT.SHOP</h1>
+            <p>
+              Витрина цифровых товаров: коды, файлы, доступы и наборы. Покупатели
+              оформляют заявки через аккаунт, а админ управляет товарами отдельно.
+            </p>
+            <div class="hero-actions">
+              <a class="primary-link" href="#catalog">
+                <i data-lucide="zap"></i>
+                В каталог
+              </a>
+              <a class="ghost-link" href="#drops">
+                <i data-lucide="sparkles"></i>
+                Смотреть дропы
+              </a>
+            </div>
           </div>
-        </div>
 
-        <div class="terminal-card" aria-label="Статус витрины">
-          <div class="terminal-head">
-            <span></span><span></span><span></span>
+          <div class="terminal-card" aria-label="Статус магазина">
+            <div class="terminal-head">
+              <span></span><span></span><span></span>
+            </div>
+            <div class="terminal-body">
+              <p><b>shop.name</b> KURSANT.SHOP</p>
+              <p><b>auth.mode</b> buyers + admin</p>
+              <p><b>files.mode</b> firestore chunks</p>
+              <p><b>paid.backend</b> disabled</p>
+            </div>
           </div>
-          <div class="terminal-body">
-            <p><b>vault.status</b> online</p>
-            <p><b>deploy.target</b> firebase hosting</p>
-            <p><b>inventory.sync</b> firestore/storage</p>
-            <p><b>paid.server</b> disabled</p>
-          </div>
-        </div>
-      </section>
+        </section>
 
-      <section class="stats-strip" aria-label="Показатели магазина">
-        <article>
-          <span id="stat-products">0</span>
-          <small>товаров</small>
-        </article>
-        <article>
-          <span id="stat-digital">0</span>
-          <small>файлов и кодов</small>
-        </article>
-        <article>
-          <span id="stat-orders">0</span>
-          <small>заявок</small>
-        </article>
-      </section>
+        <section class="stats-strip" aria-label="Показатели магазина">
+          <article>
+            <span id="stat-products">0</span>
+            <small>товаров</small>
+          </article>
+          <article>
+            <span id="stat-digital">0</span>
+            <small>файлов и кодов</small>
+          </article>
+          <article>
+            <span id="stat-orders">0</span>
+            <small>заявок</small>
+          </article>
+        </section>
 
-      <section class="store-layout" id="catalog">
-        <aside class="filters" aria-label="Фильтры каталога">
-          <div class="section-title">
-            <span>Фильтры</span>
-            <button class="text-button" id="reset-filters" type="button">Сброс</button>
-          </div>
-          <label class="search-box">
-            <i data-lucide="search"></i>
-            <input id="search-input" type="search" placeholder="Поиск товара" />
-          </label>
-          <div class="chip-row" id="category-tabs"></div>
-          <label class="field compact">
-            <span>Сортировка</span>
-            <select id="sort-select">
-              <option value="new">Новые</option>
-              <option value="priceLow">Цена: ниже</option>
-              <option value="priceHigh">Цена: выше</option>
-              <option value="name">Название</option>
-            </select>
-          </label>
-          <div class="filter-note" id="mode-note"></div>
-        </aside>
+        <section class="store-layout" id="catalog">
+          <aside class="filters" aria-label="Фильтры каталога">
+            <div class="section-title">
+              <span>Фильтры</span>
+              <button class="text-button" id="reset-filters" type="button">Сброс</button>
+            </div>
+            <label class="search-box">
+              <i data-lucide="search"></i>
+              <input id="search-input" type="search" placeholder="Поиск товара" />
+            </label>
+            <div class="chip-row" id="category-tabs"></div>
+            <label class="field compact">
+              <span>Сортировка</span>
+              <select id="sort-select">
+                <option value="new">Новые</option>
+                <option value="priceLow">Цена: ниже</option>
+                <option value="priceHigh">Цена: выше</option>
+                <option value="name">Название</option>
+              </select>
+            </label>
+            <div class="filter-note" id="mode-note"></div>
+          </aside>
 
-        <section class="catalog-shell">
-          <div class="section-title">
-            <span>Каталог</span>
-            <small id="catalog-count">0 позиций</small>
-          </div>
-          <div class="product-grid" id="product-grid"></div>
-          <div class="empty-state" id="empty-state" hidden>
-            <i data-lucide="package-search"></i>
-            <h2>Ничего не найдено</h2>
-            <p>Измени фильтр или добавь новый товар в админ-панели.</p>
-          </div>
+          <section class="catalog-shell">
+            <div class="section-title">
+              <span>Каталог</span>
+              <small id="catalog-count">0 позиций</small>
+            </div>
+            <div class="product-grid" id="product-grid"></div>
+            <div class="empty-state" id="empty-state" hidden>
+              <i data-lucide="package-search"></i>
+              <h2>Ничего не найдено</h2>
+              <p>Измени фильтр или дождись нового дропа.</p>
+            </div>
+          </section>
         </section>
       </section>
 
-      <section class="deals" id="deals">
-        <div class="section-title">
-          <span>Горячий дроп</span>
-          <small>быстрые цифровые поставки</small>
-        </div>
-        <div class="deal-grid">
-          <article>
-            <i data-lucide="key-round"></i>
-            <h2>Коды</h2>
-            <p>Ключи, доступы, лицензии, промо-коды и приватные инвайты.</p>
-          </article>
-          <article>
-            <i data-lucide="file-archive"></i>
-            <h2>Файлы</h2>
-            <p>Архивы, пресеты, шаблоны, документы, ассеты и цифровые наборы.</p>
-          </article>
-          <article>
-            <i data-lucide="receipt-text"></i>
-            <h2>Заявки</h2>
-            <p>Покупатель оставляет контакты, продавец подтверждает оплату и выдачу.</p>
-          </article>
-        </div>
+      <section class="page" id="page-drops" data-page="drops">
+        <section class="page-hero">
+          <span class="eyebrow">fresh drops</span>
+          <h1>Дропы</h1>
+          <p>Отдельная страница для новых поставок, горячих позиций и быстрых цифровых выдач.</p>
+        </section>
+
+        <section class="deals">
+          <div class="section-title">
+            <span>Горячий дроп</span>
+            <small>быстрые цифровые поставки</small>
+          </div>
+          <div class="deal-grid">
+            <article>
+              <i data-lucide="key-round"></i>
+              <h2>Коды</h2>
+              <p>Ключи, доступы, лицензии, промо-коды и приватные инвайты.</p>
+            </article>
+            <article>
+              <i data-lucide="file-archive"></i>
+              <h2>Файлы</h2>
+              <p>Небольшие файлы, пресеты, шаблоны и цифровые наборы через Firestore.</p>
+            </article>
+            <article>
+              <i data-lucide="receipt-text"></i>
+              <h2>Заявки</h2>
+              <p>Покупатель входит в аккаунт, оставляет заявку, админ подтверждает выдачу.</p>
+            </article>
+          </div>
+        </section>
+
+        <section class="catalog-shell drop-products">
+          <div class="section-title">
+            <span>Последние позиции</span>
+            <small id="drops-count">0</small>
+          </div>
+          <div class="product-grid" id="drops-grid"></div>
+        </section>
       </section>
 
-      <section class="admin-panel" id="admin">
-        <div class="admin-head">
-          <div>
-            <span class="eyebrow">seller console</span>
-            <h2>Админ-панель</h2>
+      <section class="page" id="page-admin" data-page="admin">
+        <section class="admin-panel">
+          <div class="admin-head">
+            <div>
+              <span class="eyebrow">owner console</span>
+              <h2>Админ-панель</h2>
+            </div>
+            <div class="admin-account" id="admin-account"></div>
           </div>
-          <div class="auth-box">
-            <input id="admin-email" type="email" placeholder="email" autocomplete="username" />
-            <input id="admin-password" type="password" placeholder="password / demo PIN" autocomplete="current-password" />
-            <button class="primary-button" id="admin-login" type="button">
+
+          <div class="admin-locked" id="admin-locked">
+            <i data-lucide="lock-keyhole"></i>
+            <h2>Доступ только для владельца</h2>
+            <p>Войди в админский аккаунт KURSANT.SHOP, чтобы управлять товарами и заявками.</p>
+            <button class="primary-button" id="admin-auth" type="button">
               <i data-lucide="log-in"></i>
               Войти
             </button>
-            <button class="icon-button" id="admin-logout" type="button" aria-label="Выйти" title="Выйти" hidden>
-              <i data-lucide="log-out"></i>
-            </button>
           </div>
-        </div>
 
-        <div class="admin-content" id="admin-content" hidden>
-          <form class="product-form" id="product-form">
-            <div class="form-grid">
+          <div class="admin-content" id="admin-content" hidden>
+            <form class="product-form" id="product-form">
+              <div class="form-grid">
+                <label class="field">
+                  <span>Название</span>
+                  <input name="title" required maxlength="80" placeholder="Premium Pack" />
+                </label>
+                <label class="field">
+                  <span>Цена</span>
+                  <input name="price" required min="0" step="1" type="number" placeholder="1490" />
+                </label>
+                <label class="field">
+                  <span>Категория</span>
+                  <input name="category" required maxlength="32" placeholder="Коды" />
+                </label>
+                <label class="field">
+                  <span>Тип</span>
+                  <select name="type">
+                    <option value="Код">Код</option>
+                    <option value="Файл">Файл</option>
+                    <option value="Набор">Набор</option>
+                    <option value="Доступ">Доступ</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Остаток</span>
+                  <input name="stock" min="0" step="1" type="number" placeholder="25" />
+                </label>
+                <label class="field">
+                  <span>Теги</span>
+                  <input name="tags" maxlength="120" placeholder="steam, pack, instant" />
+                </label>
+              </div>
               <label class="field">
-                <span>Название</span>
-                <input name="title" required maxlength="80" placeholder="Premium Pack" />
+                <span>Описание</span>
+                <textarea name="description" required maxlength="420" placeholder="Что получает покупатель"></textarea>
               </label>
-              <label class="field">
-                <span>Цена</span>
-                <input name="price" required min="0" step="1" type="number" placeholder="1490" />
-              </label>
-              <label class="field">
-                <span>Категория</span>
-                <input name="category" required maxlength="32" placeholder="Коды" />
-              </label>
-              <label class="field">
-                <span>Тип</span>
-                <select name="type">
-                  <option value="Код">Код</option>
-                  <option value="Файл">Файл</option>
-                  <option value="Набор">Набор</option>
-                  <option value="Доступ">Доступ</option>
-                </select>
-              </label>
-              <label class="field">
-                <span>Остаток</span>
-                <input name="stock" min="0" step="1" type="number" placeholder="25" />
-              </label>
-              <label class="field">
-                <span>Теги</span>
-                <input name="tags" maxlength="120" placeholder="steam, pack, instant" />
-              </label>
-            </div>
-            <label class="field">
-              <span>Описание</span>
-              <textarea name="description" required maxlength="420" placeholder="Что получает покупатель"></textarea>
-            </label>
-            <div class="upload-grid">
-              <label class="upload-card">
-                <i data-lucide="image-plus"></i>
-                <span>Обложка</span>
-                <input name="cover" type="file" accept="image/*" />
-              </label>
-              <label class="upload-card">
-                <i data-lucide="file-up"></i>
-                <span>Файл товара</span>
-                <input name="file" type="file" />
-              </label>
-            </div>
-            <div class="form-actions">
-              <button class="primary-button" type="submit">
-                <i data-lucide="plus"></i>
-                Добавить товар
-              </button>
-              <span id="form-status" role="status"></span>
-            </div>
-          </form>
+              <div class="upload-grid">
+                <label class="upload-card">
+                  <i data-lucide="image-plus"></i>
+                  <span>Обложка до 260 KB</span>
+                  <input name="cover" type="file" accept="image/*" />
+                </label>
+                <label class="upload-card">
+                  <i data-lucide="file-up"></i>
+                  <span>Файл до 4 MB</span>
+                  <input name="file" type="file" />
+                </label>
+              </div>
+              <div class="form-actions">
+                <button class="primary-button" type="submit">
+                  <i data-lucide="plus"></i>
+                  Добавить товар
+                </button>
+                <span id="form-status" role="status"></span>
+              </div>
+            </form>
 
-          <div class="orders-panel">
-            <div class="section-title">
-              <span>Заявки</span>
-              <small id="orders-count">0</small>
+            <div class="orders-panel">
+              <div class="section-title">
+                <span>Заявки</span>
+                <small id="orders-count">0</small>
+              </div>
+              <div id="orders-list" class="orders-list"></div>
             </div>
-            <div id="orders-list" class="orders-list"></div>
           </div>
-        </div>
+        </section>
       </section>
     </main>
 
@@ -272,6 +299,34 @@
         </form>
       </div>
     </aside>
+
+    <dialog class="auth-modal" id="auth-modal">
+      <form class="auth-card" id="auth-form" method="dialog">
+        <div class="drawer-head">
+          <h2 id="auth-title">Вход</h2>
+          <button class="icon-button" id="close-auth" type="button" aria-label="Закрыть" title="Закрыть">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+        <div class="segmented">
+          <button class="active" type="button" data-auth-mode="login">Вход</button>
+          <button type="button" data-auth-mode="register">Регистрация</button>
+        </div>
+        <label class="field">
+          <span>Email</span>
+          <input id="auth-email" type="email" required autocomplete="username" placeholder="you@example.com" />
+        </label>
+        <label class="field">
+          <span>Пароль</span>
+          <input id="auth-password" type="password" required minlength="6" autocomplete="current-password" placeholder="Минимум 6 символов" />
+        </label>
+        <button class="primary-button wide" id="auth-submit" type="submit">
+          <i data-lucide="log-in"></i>
+          Войти
+        </button>
+        <span id="auth-status" role="status"></span>
+      </form>
+    </dialog>
 
     <template id="product-template">
       <article class="product-card">

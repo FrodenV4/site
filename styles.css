@@ -176,7 +176,6 @@ img {
 
 .icon-button,
 .cart-button,
-.user-button,
 .primary-button,
 .primary-link,
 .ghost-link,
@@ -203,7 +202,6 @@ img {
 }
 
 .cart-button,
-.user-button,
 .primary-button,
 .primary-link,
 .ghost-link,
@@ -224,16 +222,6 @@ img {
   background: var(--neon);
   color: #061006;
   font-size: 12px;
-}
-
-.user-button {
-  max-width: 220px;
-}
-
-.user-button span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .primary-button,
@@ -271,19 +259,6 @@ main {
   margin: 0 auto;
 }
 
-.page {
-  display: none;
-}
-
-.page.active {
-  display: block;
-}
-
-.nav a.active {
-  color: var(--text);
-  background: rgba(124, 255, 107, 0.1);
-}
-
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
@@ -291,24 +266,6 @@ main {
   min-height: calc(100vh - 72px);
   align-items: center;
   padding: 56px 0 38px;
-}
-
-.page-hero {
-  padding: 64px 0 28px;
-}
-
-.page-hero h1 {
-  margin: 12px 0;
-  font-size: clamp(44px, 8vw, 84px);
-  line-height: 0.95;
-}
-
-.page-hero p {
-  max-width: 620px;
-  margin: 0;
-  color: var(--muted);
-  font-size: 18px;
-  line-height: 1.65;
 }
 
 .hero-copy {
@@ -710,10 +667,6 @@ main {
   padding: 18px;
 }
 
-.drop-products {
-  margin-top: 18px;
-}
-
 .deal-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -760,38 +713,6 @@ main {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
-}
-
-.admin-account {
-  color: var(--muted);
-}
-
-.admin-locked {
-  display: grid;
-  min-height: 360px;
-  place-items: center;
-  align-content: center;
-  gap: 12px;
-  border: 1px solid var(--line);
-  background: rgba(0, 0, 0, 0.18);
-  text-align: center;
-}
-
-.admin-locked svg {
-  width: 34px;
-  height: 34px;
-  color: var(--neon);
-}
-
-.admin-locked h2 {
-  margin: 0;
-}
-
-.admin-locked p {
-  max-width: 460px;
-  margin: 0;
-  color: var(--muted);
-  line-height: 1.6;
 }
 
 .auth-box input {
@@ -952,49 +873,6 @@ main {
   display: grid;
   gap: 12px;
   margin-top: 18px;
-}
-
-.auth-modal {
-  width: min(420px, calc(100% - 28px));
-  padding: 0;
-  border: 1px solid var(--line);
-  background: var(--panel);
-  color: var(--text);
-  box-shadow: var(--shadow);
-}
-
-.auth-modal::backdrop {
-  background: rgba(0, 0, 0, 0.68);
-  backdrop-filter: blur(10px);
-}
-
-.auth-card {
-  display: grid;
-  gap: 14px;
-  padding: 18px;
-}
-
-.segmented {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-  padding: 6px;
-  border: 1px solid var(--line);
-  background: rgba(0, 0, 0, 0.2);
-}
-
-.segmented button {
-  min-height: 36px;
-}
-
-.segmented button.active {
-  border-color: var(--line-strong);
-  background: rgba(124, 255, 107, 0.14);
-}
-
-#auth-status {
-  color: var(--muted);
-  min-height: 20px;
 }
 
 .checkout-total {

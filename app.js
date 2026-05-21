@@ -10,6 +10,30 @@ const firebaseConfig = {
 
 const USERNAME_PATTERN = /^[a-z0-9._-]{3,24}$/;
 const INTERNAL_AUTH_DOMAIN = "codeshop.user";
+const THEME_STORAGE_KEY = "codeshop_theme";
+const ADMIN_EMAILS = ["root.codeshop@codeshop.user"];
+const THEME_PRESETS = {
+  green: {
+    label: "Matrix",
+    accentRgb: "124, 255, 107",
+    accent2Rgb: "16, 244, 155",
+  },
+  cyan: {
+    label: "Signal",
+    accentRgb: "86, 217, 255",
+    accent2Rgb: "0, 255, 208",
+  },
+  amber: {
+    label: "Pulse",
+    accentRgb: "255, 196, 94",
+    accent2Rgb: "255, 117, 61",
+  },
+  magenta: {
+    label: "Flux",
+    accentRgb: "238, 92, 255",
+    accent2Rgb: "255, 75, 154",
+  },
+};
 
 const demoProducts = [
   {
@@ -61,6 +85,7 @@ const state = {
   authOpen: false,
   profileOpen: false,
   authMode: "login",
+  theme: "green",
   category: "Все",
   search: "",
   sort: "new",
@@ -86,6 +111,8 @@ async function init() {
     history.scrollRestoration = "manual";
   }
   cacheElements();
+  applyAccentTheme(readStoredTheme(), { persist: false });
+  renderThemeOptions();
   bindEvents();
   syncAdminNavigation();
   setAuthMode("login");
@@ -162,6 +189,12 @@ function cacheElements() {
     profileOrdersList: document.querySelector("#profile-orders-list"),
     profileOpenCart: document.querySelector("#profile-open-cart"),
     profileOpenAdmin: document.querySelector("#profile-open-admin"),
+    profileThemeCaption: document.querySelector("#profile-theme-caption"),
+    themeOptions: document.querySelector("#theme-options"),
+    profileSettingsNote: document.querySelector("#profile-settings-note"),
+    usernameForm: document.querySelector("#username-form"),
+    passwordForm: document.querySelector("#password-form"),
+    profileStatus: document.querySelector("#profile-status"),
   });
 }
 
@@ -239,8 +272,11 @@ function bindEvents() {
     button.addEventListener("click", () => setAuthMode(button.dataset.authMode));
   });
 
+  els.themeOptions.addEventListener("click", handleThemeOptionClick);
   els.loginForm.addEventListener("submit", userLogin);
   els.registerForm.addEventListener("submit", userRegister);
+  els.usernameForm.addEventListener("submit", updateUsernameSettings);
+  els.passwordForm.addEventListener("submit", updatePasswordSettings);
   els.checkoutForm.addEventListener("submit", submitOrder);
   els.adminLogin.addEventListener("click", adminLogin);
   els.adminLogout.addEventListener("click", adminLogout);
@@ -320,8 +356,81 @@ function setAuthMode(mode) {
   });
 }
 
+function readStoredTheme() {
+  const stored = localStorage.getItem(THEME_STORAGE_KEY);
+  return THEME_PRESETS[stored] ? stored : "green";
+}
+
+function applyAccentTheme(themeName, options = {}) {
+  const nextTheme = THEME_PRESETS[themeName] ? themeName : "green";
+  const preset = THEME_PRESETS[nextTheme];
+  state.theme = nextTheme;
+
+  document.documentElement.style.setProperty("--accent-rgb", preset.accentRgb);
+  document.documentElement.style.setProperty("--accent-2-rgb", preset.accent2Rgb);
+
+  if (options.persist !== false) {
+    localStorage.setItem(THEME_STORAGE_KEY, nextTheme);
+  }
+
+  renderThemeOptions();
+  if (els.profileThemeCaption) {
+    els.profileThemeCaption.textContent = `${preset.label.toLowerCase()} accent`;
+  }
+}
+
+function renderThemeOptions() {
+  if (!els.themeOptions) return;
+
+  els.themeOptions.replaceChildren();
+
+  Object.entries(THEME_PRESETS).forEach(([themeName, preset]) => {
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = `theme-chip${state.theme === themeName ? " active" : ""}`;
+    chip.dataset.theme = themeName;
+    chip.innerHTML = `
+      <div class="theme-chip-swatch">
+        <i style="background: rgb(${preset.accentRgb});"></i>
+        <b style="background: rgb(${preset.accent2Rgb});"></b>
+      </div>
+      <strong>${escapeHtml(preset.label)}</strong>
+      <span>${escapeHtml(themeName)}</span>
+    `;
+    els.themeOptions.append(chip);
+  });
+}
+
+async function handleThemeOptionClick(event) {
+  const button = event.target.closest("[data-theme]");
+  if (!button) return;
+
+  const nextTheme = button.dataset.theme;
+  applyAccentTheme(nextTheme);
+
+  if (!state.firebaseReady || !state.user || state.user.isAdmin) {
+    renderProfile();
+    return;
+  }
+
+  try {
+    await persistUserProfile({
+      theme: nextTheme,
+    });
+    setProfileStatus("Тема обновлена.");
+  } catch (error) {
+    console.error(error);
+    setProfileStatus("Не удалось сохранить тему в профиле.", true);
+  }
+}
+
 function syncAdminNavigation() {
   els.adminNavLink.hidden = !state.admin;
+}
+
+function isAdminAccount(firebaseUser, adminDocExists = false) {
+  const email = String(firebaseUser?.email || "").trim().toLowerCase();
+  return adminDocExists || ADMIN_EMAILS.includes(email);
 }
 
 async function initFirebase() {
@@ -368,6 +477,7 @@ async function handleAuthState(firebaseUser) {
   const { doc, getDoc } = services.dbApi;
   let userSnap = await getDoc(doc(services.db, "users", firebaseUser.uid));
   const adminSnap = await getDoc(doc(services.db, "admins", firebaseUser.uid));
+  const adminAccess = isAdminAccount(firebaseUser, adminSnap.exists());
 
   if (!userSnap.exists() && state.pendingProfileUid === firebaseUser.uid) {
     userSnap = await waitForUserProfile(firebaseUser.uid);
@@ -376,12 +486,14 @@ async function handleAuthState(firebaseUser) {
   if (userSnap.exists()) {
     const profile = userSnap.data();
     state.pendingProfileUid = null;
-    setAdmin(Boolean(adminSnap.exists()));
+    setAdmin(adminAccess);
+    applyAccentTheme(profile.theme || readStoredTheme());
     setSessionUser({
       uid: firebaseUser.uid,
       username: profile.username || profile.usernameKey || "user",
       email: profile.email || "",
-      isAdmin: Boolean(adminSnap.exists()),
+      theme: profile.theme || state.theme,
+      isAdmin: adminAccess,
     });
     listenUserOrders(firebaseUser.uid);
     listenOrders();
@@ -389,13 +501,14 @@ async function handleAuthState(firebaseUser) {
     return;
   }
 
-  if (adminSnap.exists()) {
+  if (adminAccess) {
     state.pendingProfileUid = null;
     setAdmin(true);
     setSessionUser({
       uid: firebaseUser.uid,
       username: firebaseUser.email || "admin",
       email: firebaseUser.email || "",
+      theme: readStoredTheme(),
       isAdmin: true,
     });
     state.unsubUserOrders?.();
@@ -640,6 +753,7 @@ function renderProfile() {
   const isAdmin = Boolean(user?.isAdmin || state.admin);
   const orders = isAdmin ? state.orders : state.userOrders;
   const recentOrders = orders.slice(0, 4);
+  const guest = !user;
 
   els.profileName.textContent = user?.username || "Гость";
   els.profileEmail.textContent = user?.email || "Войди в аккаунт, чтобы видеть данные профиля и свои заявки.";
@@ -650,6 +764,23 @@ function renderProfile() {
   els.profileCartCount.textContent = String(state.cart.reduce((sum, item) => sum + item.qty, 0));
   els.profileOrdersCaption.textContent = `${orders.length} ${plural(orders.length, ["запись", "записи", "записей"])}`;
   els.profileOpenAdmin.hidden = !isAdmin;
+  els.profileThemeCaption.textContent = `${(THEME_PRESETS[state.theme]?.label || "Accent").toLowerCase()} accent`;
+  renderThemeOptions();
+  els.usernameForm.hidden = guest || isAdmin;
+  els.passwordForm.hidden = guest;
+
+  if (guest) {
+    els.profileSettingsNote.textContent = "Войди в аккаунт, чтобы менять логин и пароль. Тему можно переключать уже сейчас.";
+  } else if (isAdmin) {
+    els.profileSettingsNote.textContent = "Админ-доступ закреплен за этим email. Здесь можно менять пароль и тему интерфейса.";
+  } else {
+    els.profileSettingsNote.textContent = "После смены логина вход в аккаунт будет выполняться уже по новому логину.";
+  }
+
+  const usernameInput = els.usernameForm.elements.username;
+  if (usernameInput && !usernameInput.matches(":focus")) {
+    usernameInput.placeholder = user?.username || "neo.user";
+  }
 
   els.profileOrdersList.replaceChildren();
   if (!recentOrders.length) {
@@ -865,7 +996,9 @@ async function userRegister(event) {
       usernameKey: normalized.key,
       email,
       role: "user",
+      theme: state.theme,
       createdAt: serverTimestamp(),
+      updatedAt: serverTimestamp(),
     });
 
     state.pendingProfileUid = null;
@@ -874,6 +1007,101 @@ async function userRegister(event) {
   } catch (error) {
     console.error(error);
     setAuthStatus(mapAuthError(error, "Не удалось создать аккаунт. Попробуй позже."), true);
+  }
+}
+
+async function updateUsernameSettings(event) {
+  event.preventDefault();
+
+  if (!state.firebaseReady || !state.user || state.user.isAdmin) {
+    setProfileStatus("Смена логина доступна только для обычного пользовательского аккаунта.", true);
+    return;
+  }
+
+  const currentUser = services.auth.currentUser;
+  if (!currentUser?.email) {
+    setProfileStatus("Сессия устарела. Войди заново и повтори.", true);
+    return;
+  }
+
+  const formData = new FormData(els.usernameForm);
+  const normalized = normalizeUsername(formData.get("username"));
+  const currentPassword = String(formData.get("currentPassword") || "").trim();
+
+  if (!validateUsername(normalized.key)) {
+    setProfileStatus("Новый логин должен быть 3-24 символа и содержать только a-z, 0-9, точку, дефис или нижнее подчеркивание.", true);
+    return;
+  }
+
+  if (normalized.key === state.user.username) {
+    setProfileStatus("Этот логин уже установлен.", true);
+    return;
+  }
+
+  if (currentPassword.length < 6) {
+    setProfileStatus("Подтверди текущий пароль.", true);
+    return;
+  }
+
+  try {
+    const credential = services.authApi.EmailAuthProvider.credential(currentUser.email, currentPassword);
+    await services.authApi.reauthenticateWithCredential(currentUser, credential);
+    await services.authApi.updateEmail(currentUser, buildInternalEmail(normalized.key));
+    await persistUserProfile({
+      username: normalized.key,
+      usernameKey: normalized.key,
+    });
+    els.usernameForm.reset();
+    setProfileStatus("Логин обновлен. Теперь вход выполняется по новому логину.");
+  } catch (error) {
+    console.error(error);
+    setProfileStatus(mapAuthError(error, "Не удалось обновить логин."), true);
+  }
+}
+
+async function updatePasswordSettings(event) {
+  event.preventDefault();
+
+  if (!state.firebaseReady || !state.user) {
+    setProfileStatus("Сначала войди в аккаунт.", true);
+    return;
+  }
+
+  const currentUser = services.auth.currentUser;
+  if (!currentUser?.email) {
+    setProfileStatus("Сессия устарела. Войди заново и повтори.", true);
+    return;
+  }
+
+  const formData = new FormData(els.passwordForm);
+  const currentPassword = String(formData.get("currentPassword") || "").trim();
+  const newPassword = String(formData.get("newPassword") || "").trim();
+  const confirmPassword = String(formData.get("confirmPassword") || "").trim();
+
+  if (currentPassword.length < 6) {
+    setProfileStatus("Укажи текущий пароль.", true);
+    return;
+  }
+
+  if (newPassword.length < 6) {
+    setProfileStatus("Новый пароль должен быть не короче 6 символов.", true);
+    return;
+  }
+
+  if (newPassword !== confirmPassword) {
+    setProfileStatus("Новые пароли не совпадают.", true);
+    return;
+  }
+
+  try {
+    const credential = services.authApi.EmailAuthProvider.credential(currentUser.email, currentPassword);
+    await services.authApi.reauthenticateWithCredential(currentUser, credential);
+    await services.authApi.updatePassword(currentUser, newPassword);
+    els.passwordForm.reset();
+    setProfileStatus("Пароль обновлен.");
+  } catch (error) {
+    console.error(error);
+    setProfileStatus(mapAuthError(error, "Не удалось обновить пароль."), true);
   }
 }
 
@@ -925,6 +1153,7 @@ async function logoutCurrentSession() {
   setSessionUser(null);
   setCheckoutStatus("");
   setAuthStatus("");
+  setProfileStatus("");
 }
 
 function setAdmin(value) {
@@ -954,6 +1183,23 @@ function setSessionUser(user) {
   renderProfile();
   syncCheckoutContact();
   renderCheckoutAccess();
+}
+
+async function persistUserProfile(partial) {
+  if (!state.firebaseReady || !state.user || state.user.isAdmin) return;
+
+  const { doc, serverTimestamp, updateDoc } = services.dbApi;
+  await updateDoc(doc(services.db, "users", state.user.uid), {
+    ...partial,
+    updatedAt: serverTimestamp(),
+  });
+
+  state.user = {
+    ...state.user,
+    ...partial,
+  };
+  renderSessionControls();
+  renderProfile();
 }
 
 function handlePostAuthSuccess() {
@@ -1197,6 +1443,8 @@ function mapAuthError(error, fallback) {
   if (code === "auth/weak-password") return "Пароль слишком простой.";
   if (code === "auth/invalid-credential") return "Неверный логин или пароль.";
   if (code === "auth/user-disabled") return "Аккаунт отключен.";
+  if (code === "auth/requires-recent-login") return "Подтверди текущий пароль и повтори попытку.";
+  if (code === "auth/too-many-requests") return "Слишком много попыток. Подожди немного и попробуй снова.";
   return fallback;
 }
 
@@ -1213,6 +1461,11 @@ function setCheckoutStatus(message, error = false) {
 function setAuthStatus(message, error = false) {
   els.authStatus.textContent = message;
   els.authStatus.style.color = error ? "var(--danger)" : "var(--muted)";
+}
+
+function setProfileStatus(message, error = false) {
+  els.profileStatus.textContent = message;
+  els.profileStatus.style.color = error ? "var(--danger)" : "var(--muted)";
 }
 
 function formatMoney(value) {

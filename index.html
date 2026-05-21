@@ -5,9 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta
       name="description"
-      content="Neon Vault - магазин цифровых товаров: коды, файлы, пресеты, доступы и цифровые наборы."
+      content="CODE.SHOP - магазин цифровых товаров: коды, файлы, наборы, доступы и цифровые дропы."
     />
-    <title>Neon Vault | Digital Goods</title>
+    <title>CODE.SHOP | Digital Goods</title>
     <link rel="preconnect" href="https://www.gstatic.com" />
     <link rel="stylesheet" href="styles.css" />
     <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js" defer></script>
@@ -409,6 +409,63 @@
               <i data-lucide="shield-check"></i>
               Открыть админку
             </button>
+          </div>
+
+          <div class="profile-settings">
+            <div class="section-title">
+              <span>Настройки</span>
+              <small id="profile-theme-caption">accent theme</small>
+            </div>
+
+            <div class="theme-options" id="theme-options" aria-label="Акцентная тема"></div>
+
+            <p class="filter-note" id="profile-settings-note">
+              Войди в аккаунт, чтобы менять логин и пароль. Тему можно переключать уже сейчас.
+            </p>
+
+            <form class="settings-form" id="username-form" hidden>
+              <div class="settings-head">
+                <strong>Смена логина</strong>
+                <small>Новый логин станет входом в аккаунт.</small>
+              </div>
+              <label class="field">
+                <span>Новый логин</span>
+                <input name="username" maxlength="24" autocomplete="username" placeholder="neo.user" required />
+              </label>
+              <label class="field">
+                <span>Текущий пароль</span>
+                <input name="currentPassword" type="password" minlength="6" autocomplete="current-password" placeholder="Подтверди пароль" required />
+              </label>
+              <button class="ghost-link wide" type="submit">
+                <i data-lucide="user-cog"></i>
+                Обновить логин
+              </button>
+            </form>
+
+            <form class="settings-form" id="password-form" hidden>
+              <div class="settings-head">
+                <strong>Смена пароля</strong>
+                <small>Пароль обновится сразу после подтверждения.</small>
+              </div>
+              <label class="field">
+                <span>Текущий пароль</span>
+                <input name="currentPassword" type="password" minlength="6" autocomplete="current-password" placeholder="Текущий пароль" required />
+              </label>
+              <label class="field">
+                <span>Новый пароль</span>
+                <input name="newPassword" type="password" minlength="6" autocomplete="new-password" placeholder="Не короче 6 символов" required />
+              </label>
+              <label class="field">
+                <span>Повтор нового пароля</span>
+                <input name="confirmPassword" type="password" minlength="6" autocomplete="new-password" placeholder="Повтори новый пароль" required />
+              </label>
+              <button class="ghost-link wide" type="submit">
+                <i data-lucide="key-round"></i>
+                Обновить пароль
+              </button>
+            </form>
+
+            <div class="profile-status" id="profile-status" role="status"></div>
           </div>
 
           <div class="profile-orders">

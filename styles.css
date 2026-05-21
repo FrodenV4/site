@@ -1,16 +1,18 @@
 :root {
   color-scheme: dark;
+  --accent-rgb: 124, 255, 107;
+  --accent-2-rgb: 16, 244, 155;
   --bg: #080907;
   --panel: #11130f;
   --panel-2: #171a14;
   --panel-soft: rgba(20, 23, 18, 0.78);
-  --line: rgba(184, 255, 84, 0.16);
-  --line-strong: rgba(95, 255, 120, 0.42);
+  --line: rgba(var(--accent-rgb), 0.16);
+  --line-strong: rgba(var(--accent-rgb), 0.42);
   --text: #eef4e8;
   --muted: #9ca792;
   --dim: #68705f;
-  --neon: #7cff6b;
-  --neon-2: #10f49b;
+  --neon: rgb(var(--accent-rgb));
+  --neon-2: rgb(var(--accent-2-rgb));
   --amber: #ffca5f;
   --magenta: #ee5cff;
   --danger: #ff6464;
@@ -38,7 +40,7 @@ body {
   min-width: 320px;
   margin: 0;
   background:
-    radial-gradient(circle at 18% 0%, rgba(124, 255, 107, 0.12), transparent 28rem),
+    radial-gradient(circle at 18% 0%, rgba(var(--accent-rgb), 0.12), transparent 28rem),
     linear-gradient(180deg, #080907 0%, #0c0d0a 56%, #070806 100%);
   color: var(--text);
   overflow-x: hidden;
@@ -49,7 +51,7 @@ body.high-contrast {
   --panel: #0a0c09;
   --panel-2: #10130e;
   --muted: #c6d2bc;
-  --line: rgba(124, 255, 107, 0.28);
+  --line: rgba(var(--accent-rgb), 0.28);
 }
 
 button,
@@ -136,7 +138,7 @@ img {
   border: 1px solid var(--line-strong);
   background: #10130d;
   color: var(--neon);
-  box-shadow: 0 0 24px rgba(124, 255, 107, 0.18);
+  box-shadow: 0 0 24px rgba(var(--accent-rgb), 0.18);
   font-weight: 900;
 }
 
@@ -167,10 +169,10 @@ img {
   justify-content: center;
   min-height: 46px;
   padding: 0 18px;
-  border: 1px solid rgba(124, 255, 107, 0.14);
+  border: 1px solid rgba(var(--accent-rgb), 0.14);
   border-radius: 16px;
   background:
-    linear-gradient(180deg, rgba(124, 255, 107, 0.08), rgba(124, 255, 107, 0.02)),
+    linear-gradient(180deg, rgba(var(--accent-rgb), 0.08), rgba(var(--accent-rgb), 0.02)),
     rgba(16, 18, 14, 0.88);
   color: var(--muted);
   box-shadow:
@@ -186,22 +188,22 @@ img {
 
 .nav a:hover {
   color: var(--text);
-  border-color: rgba(124, 255, 107, 0.28);
+  border-color: rgba(var(--accent-rgb), 0.28);
   background:
-    linear-gradient(180deg, rgba(124, 255, 107, 0.14), rgba(124, 255, 107, 0.04)),
+    linear-gradient(180deg, rgba(var(--accent-rgb), 0.14), rgba(var(--accent-rgb), 0.04)),
     rgba(16, 18, 14, 0.96);
   transform: translateY(-1px);
 }
 
 .nav a.active {
-  border-color: rgba(124, 255, 107, 0.42);
+  border-color: rgba(var(--accent-rgb), 0.42);
   color: var(--text);
   background:
-    linear-gradient(180deg, rgba(124, 255, 107, 0.24), rgba(16, 244, 155, 0.08)),
+    linear-gradient(180deg, rgba(var(--accent-rgb), 0.24), rgba(var(--accent-2-rgb), 0.08)),
     rgba(16, 18, 14, 0.96);
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 0 0 1px rgba(124, 255, 107, 0.06),
+    0 0 0 1px rgba(var(--accent-rgb), 0.06),
     0 16px 32px rgba(0, 0, 0, 0.22);
 }
 
@@ -218,9 +220,9 @@ img {
 }
 
 .auth-entry-button.active {
-  border-color: rgba(124, 255, 107, 0.42);
+  border-color: rgba(var(--accent-rgb), 0.42);
   background:
-    linear-gradient(180deg, rgba(124, 255, 107, 0.18), rgba(16, 244, 155, 0.08)),
+    linear-gradient(180deg, rgba(var(--accent-rgb), 0.18), rgba(var(--accent-2-rgb), 0.08)),
     rgba(17, 19, 15, 0.92);
 }
 
@@ -333,9 +335,9 @@ img {
 .primary-button,
 .primary-link,
 .product-foot button {
-  border-color: rgba(124, 255, 107, 0.46);
-  background: linear-gradient(180deg, rgba(124, 255, 107, 0.22), rgba(16, 244, 155, 0.1));
-  box-shadow: 0 0 24px rgba(124, 255, 107, 0.13);
+  border-color: rgba(var(--accent-rgb), 0.46);
+  background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.22), rgba(var(--accent-2-rgb), 0.1));
+  box-shadow: 0 0 24px rgba(var(--accent-rgb), 0.13);
 }
 
 .ghost-link {
@@ -357,7 +359,7 @@ img {
 .text-button:hover {
   transform: translateY(-1px);
   border-color: var(--line-strong);
-  box-shadow: 0 0 26px rgba(124, 255, 107, 0.2);
+  box-shadow: 0 0 26px rgba(var(--accent-rgb), 0.2);
 }
 
 main {
@@ -430,7 +432,7 @@ main {
   overflow: hidden;
   border: 1px solid var(--line);
   background:
-    linear-gradient(145deg, rgba(124, 255, 107, 0.08), transparent 40%),
+    linear-gradient(145deg, rgba(var(--accent-rgb), 0.08), transparent 40%),
     rgba(12, 14, 11, 0.88);
   box-shadow: var(--shadow);
 }
@@ -462,7 +464,7 @@ main {
   height: 10px;
   border-radius: 50%;
   background: var(--neon);
-  box-shadow: 0 0 18px rgba(124, 255, 107, 0.44);
+  box-shadow: 0 0 18px rgba(var(--accent-rgb), 0.44);
 }
 
 .terminal-head span:nth-child(2) {
@@ -623,7 +625,7 @@ main {
 .field select:focus,
 .auth-box input:focus {
   border-color: var(--line-strong);
-  box-shadow: 0 0 0 3px rgba(124, 255, 107, 0.08);
+  box-shadow: 0 0 0 3px rgba(var(--accent-rgb), 0.08);
 }
 
 .filter-note {
@@ -657,7 +659,7 @@ main {
 
 .product-card:hover {
   transform: translateY(-4px);
-  border-color: rgba(124, 255, 107, 0.34);
+  border-color: rgba(var(--accent-rgb), 0.34);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
 }
 
@@ -666,7 +668,7 @@ main {
   aspect-ratio: 1.42;
   overflow: hidden;
   background:
-    linear-gradient(135deg, rgba(124, 255, 107, 0.24), transparent 42%),
+    linear-gradient(135deg, rgba(var(--accent-rgb), 0.24), transparent 42%),
     linear-gradient(315deg, rgba(238, 92, 255, 0.16), transparent 48%),
     #0d100c;
 }
@@ -692,7 +694,7 @@ main {
 .product-fallback svg {
   width: 42px;
   height: 42px;
-  filter: drop-shadow(0 0 22px rgba(124, 255, 107, 0.44));
+  filter: drop-shadow(0 0 22px rgba(var(--accent-rgb), 0.44));
 }
 
 .product-media img:not([src=""]) + .product-fallback {
@@ -704,7 +706,7 @@ main {
   top: 10px;
   left: 10px;
   padding: 6px 9px;
-  border: 1px solid rgba(124, 255, 107, 0.38);
+  border: 1px solid rgba(var(--accent-rgb), 0.38);
   background: rgba(0, 0, 0, 0.52);
   color: var(--neon);
   font-size: 12px;
@@ -824,10 +826,10 @@ main {
 }
 
 .auth-tab.active {
-  border-color: rgba(124, 255, 107, 0.42);
+  border-color: rgba(var(--accent-rgb), 0.42);
   color: var(--text);
-  background: linear-gradient(180deg, rgba(124, 255, 107, 0.24), rgba(16, 244, 155, 0.08));
-  box-shadow: 0 0 24px rgba(124, 255, 107, 0.12);
+  background: linear-gradient(180deg, rgba(var(--accent-rgb), 0.24), rgba(var(--accent-2-rgb), 0.08));
+  box-shadow: 0 0 24px rgba(var(--accent-rgb), 0.12);
 }
 
 .auth-form {
@@ -919,6 +921,93 @@ main {
 .profile-orders {
   display: grid;
   gap: 10px;
+}
+
+.profile-settings {
+  display: grid;
+  gap: 12px;
+}
+
+.theme-options {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.theme-chip {
+  display: grid;
+  gap: 10px;
+  justify-items: start;
+  min-height: 74px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.18);
+  color: var(--text);
+  cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
+}
+
+.theme-chip:hover {
+  transform: translateY(-1px);
+  border-color: var(--line-strong);
+}
+
+.theme-chip.active {
+  border-color: var(--line-strong);
+  box-shadow: 0 0 24px rgba(var(--accent-rgb), 0.12);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.theme-chip span {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.theme-chip strong {
+  font-size: 14px;
+}
+
+.theme-chip-swatch {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.theme-chip-swatch i,
+.theme-chip-swatch b {
+  display: block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.settings-form {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  background: rgba(0, 0, 0, 0.18);
+}
+
+.settings-head {
+  display: grid;
+  gap: 6px;
+}
+
+.settings-head small {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.profile-status {
+  min-height: 22px;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .profile-orders-list {
@@ -1030,7 +1119,7 @@ main {
   border: 1px dashed var(--line-strong);
   color: var(--muted);
   cursor: pointer;
-  background: rgba(124, 255, 107, 0.04);
+  background: rgba(var(--accent-rgb), 0.04);
 }
 
 .upload-card svg {
@@ -1317,7 +1406,8 @@ svg {
   .deal-grid,
   .form-grid,
   .upload-grid,
-  .auth-switcher {
+  .auth-switcher,
+  .theme-options {
     grid-template-columns: 1fr;
   }
 

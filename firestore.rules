@@ -8,7 +8,10 @@ service cloud.firestore {
 
     function isAdmin() {
       return signedIn()
-        && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+        && (
+          request.auth.token.email == "root.codeshop@codeshop.user"
+          || exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+        );
     }
 
     function validUsername(value) {
@@ -23,6 +26,25 @@ service cloud.firestore {
         && value.size() >= 6
         && value.size() <= 120
         && value.matches('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$');
+    }
+
+    function validTheme(value) {
+      return value is string
+        && (
+          value == 'green'
+          || value == 'cyan'
+          || value == 'amber'
+          || value == 'magenta'
+        );
+    }
+
+    function validUserProfile(data) {
+      return validUsername(data.username)
+        && validUsername(data.usernameKey)
+        && data.username == data.usernameKey
+        && validEmail(data.email)
+        && data.role == "user"
+        && (!("theme" in data) || validTheme(data.theme));
     }
 
     function validContact(value) {
@@ -46,12 +68,14 @@ service cloud.firestore {
       allow create: if signedIn()
         && request.auth.uid == uid
         && request.resource.data.uid == request.auth.uid
-        && validUsername(request.resource.data.username)
-        && validUsername(request.resource.data.usernameKey)
-        && request.resource.data.username == request.resource.data.usernameKey
-        && validEmail(request.resource.data.email)
-        && request.resource.data.role == "user";
-      allow update, delete: if false;
+        && validUserProfile(request.resource.data);
+      allow update: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.uid == resource.data.uid
+        && request.resource.data.role == resource.data.role
+        && request.resource.data.createdAt == resource.data.createdAt
+        && validUserProfile(request.resource.data);
+      allow delete: if false;
     }
 
     match /products/{productId} {

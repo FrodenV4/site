@@ -213,6 +213,13 @@ img {
   white-space: nowrap;
 }
 
+.auth-entry-button.active {
+  border-color: rgba(124, 255, 107, 0.42);
+  background:
+    linear-gradient(180deg, rgba(124, 255, 107, 0.18), rgba(16, 244, 155, 0.08)),
+    rgba(17, 19, 15, 0.92);
+}
+
 .session-pill {
   display: flex;
   align-items: center;

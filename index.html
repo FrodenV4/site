@@ -18,7 +18,7 @@
     <canvas id="ambient-canvas" aria-hidden="true"></canvas>
 
     <header class="topbar">
-      <a class="brand" href="#store" aria-label="CODE.SHOP">
+      <a class="brand" data-route="store" href="#store" aria-label="CODE.SHOP">
         <span class="brand-mark">CS</span>
         <span>
           <strong>CODE.SHOP</strong>
@@ -27,9 +27,9 @@
       </a>
 
       <nav class="nav" aria-label="Основная навигация">
-        <a class="nav-link" data-view-link="store" href="#store">Витрина</a>
-        <a class="nav-link" data-view-link="deals" href="#deals">Дропы</a>
-        <a class="nav-link nav-admin" data-view-link="admin" href="#admin">Админ</a>
+        <a class="nav-link" data-view-link="store" data-route="store" href="#store">Витрина</a>
+        <a class="nav-link" data-view-link="deals" data-route="deals" href="#deals">Дропы</a>
+        <a class="nav-link nav-admin" data-view-link="admin" data-route="admin" href="#admin">Админ</a>
       </nav>
 
       <div class="top-actions">
@@ -69,7 +69,7 @@
               <i data-lucide="zap"></i>
               В каталог
             </a>
-            <a class="ghost-link" href="#admin">
+            <a class="ghost-link" data-route="admin" href="#admin">
               <i data-lucide="shield-check"></i>
               Панель продавца
             </a>

@@ -78,6 +78,9 @@ const els = {};
 document.addEventListener("DOMContentLoaded", init);
 
 async function init() {
+  if ("scrollRestoration" in history) {
+    history.scrollRestoration = "manual";
+  }
   cacheElements();
   bindEvents();
   syncAdminNavigation();
@@ -128,6 +131,7 @@ function cacheElements() {
     themeToggle: document.querySelector("#theme-toggle"),
     pageViews: [...document.querySelectorAll(".page-view")],
     navLinks: [...document.querySelectorAll(".nav-link")],
+    routeLinks: [...document.querySelectorAll("[data-route]")],
     adminNavLink: document.querySelector(".nav-admin"),
     openAuth: document.querySelector("#open-auth"),
     authEntryText: document.querySelector("#auth-entry-text"),
@@ -143,6 +147,15 @@ function cacheElements() {
 
 function bindEvents() {
   window.addEventListener("hashchange", syncViewFromHash);
+
+  els.routeLinks.forEach((link) => {
+    link.addEventListener("click", (event) => {
+      const route = link.dataset.route;
+      if (!route) return;
+      event.preventDefault();
+      navigateToView(route);
+    });
+  });
 
   els.searchInput.addEventListener("input", (event) => {
     state.search = event.target.value.trim().toLowerCase();
@@ -196,14 +209,13 @@ function bindEvents() {
 }
 
 function syncViewFromHash() {
-  setView(getViewFromHash(window.location.hash));
+  const hashToken = getHashToken(window.location.hash);
+  const scrollTarget = hashToken === "catalog" ? "catalog" : null;
+  setView(getViewFromHash(window.location.hash), { scrollTarget });
 }
 
 function getViewFromHash(hash) {
-  const route = String(hash || "")
-    .replace(/^#/, "")
-    .trim()
-    .toLowerCase();
+  const route = getHashToken(hash);
 
   if (route === "deals") return "deals";
   if (route === "auth") return "auth";
@@ -211,17 +223,24 @@ function getViewFromHash(hash) {
   return "store";
 }
 
+function getHashToken(hash) {
+  return String(hash || "")
+    .replace(/^#/, "")
+    .trim()
+    .toLowerCase();
+}
+
 function navigateToView(view) {
   const nextHash = `#${view}`;
   if (window.location.hash !== nextHash) {
     window.location.hash = nextHash;
-    return;
   }
   setView(view);
 }
 
-function setView(view) {
+function setView(view, options = {}) {
   state.view = view;
+  document.body.dataset.view = view;
 
   els.pageViews.forEach((page) => {
     const active = page.dataset.view === view;
@@ -235,6 +254,18 @@ function setView(view) {
     if (active) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
   });
+
+  els.openAuth.classList.toggle("active", view === "auth" && !state.user);
+  toggleCart(false);
+
+  if (options.scrollTarget === "catalog" && view === "store") {
+    requestAnimationFrame(() => {
+      document.querySelector("#catalog")?.scrollIntoView({ block: "start", behavior: "smooth" });
+    });
+    return;
+  }
+
+  window.scrollTo({ top: 0, left: 0, behavior: "auto" });
 }
 
 function setAuthMode(mode) {
@@ -525,6 +556,7 @@ function renderSessionControls() {
   const loggedIn = Boolean(state.user);
   els.openAuth.hidden = loggedIn;
   els.sessionPill.hidden = !loggedIn;
+  els.authEntryText.textContent = state.view === "auth" ? "Авторизация" : "Вход";
   if (loggedIn) {
     els.sessionLabel.textContent = state.user.username || state.user.email || "user";
   }

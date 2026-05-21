@@ -11,7 +11,7 @@ const firebaseConfig = {
 const USERNAME_PATTERN = /^[a-z0-9._-]{3,24}$/;
 const INTERNAL_AUTH_DOMAIN = "codeshop.user";
 const THEME_STORAGE_KEY = "codeshop_theme";
-const ADMIN_EMAILS = ["root.codeshop@codeshop.user"];
+const ADMIN_EMAILS = ["rootadmin@codeshop.user"];
 const THEME_PRESETS = {
   green: {
     label: "Matrix",

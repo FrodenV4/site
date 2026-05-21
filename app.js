@@ -1277,7 +1277,7 @@ async function addProduct(event) {
     renderAll();
   } catch (error) {
     console.error(error);
-    setFormStatus("Не удалось добавить товар. Проверь Firestore rules.", true);
+    setFormStatus(mapProductError(error), true);
   }
 }
 
@@ -1289,8 +1289,8 @@ async function addFirebaseProduct(product, cover, file) {
   let fileStored = false;
 
   if (cover && cover.size) {
-    if (cover.size > 260 * 1024) {
-      throw new Error("Cover image is too large for Firestore mode.");
+    if (cover.size > 600 * 1024) {
+      throw new Error("COVER_TOO_LARGE");
     }
     coverUrl = await fileToDataUrl(cover);
   }
@@ -1311,7 +1311,7 @@ async function addFirebaseProduct(product, cover, file) {
 
 async function saveFirestoreFile(productId, file) {
   if (file.size > 4 * 1024 * 1024) {
-    throw new Error("File is too large for Firestore mode.");
+    throw new Error("FILE_TOO_LARGE");
   }
 
   const { doc, serverTimestamp, setDoc } = services.dbApi;
@@ -1472,6 +1472,29 @@ function mapAuthError(error, fallback) {
   if (code === "auth/requires-recent-login") return "Подтверди текущий пароль и повтори попытку.";
   if (code === "auth/too-many-requests") return "Слишком много попыток. Подожди немного и попробуй снова.";
   return fallback;
+}
+
+function mapProductError(error) {
+  const code = error?.code || "";
+  const message = String(error?.message || "");
+
+  if (message.includes("COVER_TOO_LARGE")) {
+    return "Обложка слишком большая. Загрузи изображение до 600 КБ.";
+  }
+
+  if (message.includes("FILE_TOO_LARGE")) {
+    return "Файл товара слишком большой. Для бесплатного режима нужен файл до 4 МБ.";
+  }
+
+  if (code === "permission-denied") {
+    return "Нет доступа на запись. Войди как rootAdmin и активируй панель токеном HASH#root.";
+  }
+
+  if (code === "unauthenticated") {
+    return "Сессия истекла. Войди заново и повтори.";
+  }
+
+  return "Не удалось добавить товар. Проверь размер файлов и активность админ-сессии.";
 }
 
 function setFormStatus(message, error = false) {

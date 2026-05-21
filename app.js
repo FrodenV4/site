@@ -58,6 +58,7 @@ const state = {
   admin: false,
   user: null,
   view: "store",
+  authOpen: false,
   authMode: "login",
   category: "Все",
   search: "",
@@ -108,6 +109,9 @@ function cacheElements() {
     drawerPanel: document.querySelector(".drawer-panel"),
     openCart: document.querySelector("#open-cart"),
     closeCart: document.querySelector("#close-cart"),
+    authDrawer: document.querySelector("#auth-drawer"),
+    authPanel: document.querySelector(".auth-panel"),
+    closeAuth: document.querySelector("#close-auth"),
     cartCount: document.querySelector("#cart-count"),
     cartItems: document.querySelector("#cart-items"),
     cartTotal: document.querySelector("#cart-total"),
@@ -181,10 +185,15 @@ function bindEvents() {
   els.cartDrawer.addEventListener("click", (event) => {
     if (event.target === els.cartDrawer) toggleCart(false);
   });
+  els.closeAuth.addEventListener("click", () => toggleAuth(false));
+  els.authDrawer.addEventListener("click", (event) => {
+    if (event.target === els.authDrawer) toggleAuth(false);
+  });
 
   els.openAuth.addEventListener("click", () => {
     setAuthStatus("");
-    navigateToView("auth");
+    toggleCart(false);
+    toggleAuth(true);
   });
 
   els.sessionLogout.addEventListener("click", logoutCurrentSession);
@@ -192,7 +201,7 @@ function bindEvents() {
     state.pendingCheckout = true;
     toggleCart(false);
     setAuthStatus("Войди или создай аккаунт, чтобы оформить заявку.");
-    navigateToView("auth");
+    toggleAuth(true);
   });
 
   els.authTabs.forEach((button) => {
@@ -218,7 +227,6 @@ function getViewFromHash(hash) {
   const route = getHashToken(hash);
 
   if (route === "deals") return "deals";
-  if (route === "auth") return "auth";
   if (route === "admin") return "admin";
   return "store";
 }
@@ -255,8 +263,8 @@ function setView(view, options = {}) {
     else link.removeAttribute("aria-current");
   });
 
-  els.openAuth.classList.toggle("active", view === "auth" && !state.user);
   toggleCart(false);
+  toggleAuth(false);
 
   if (options.scrollTarget === "catalog" && view === "store") {
     requestAnimationFrame(() => {
@@ -556,7 +564,7 @@ function renderSessionControls() {
   const loggedIn = Boolean(state.user);
   els.openAuth.hidden = loggedIn;
   els.sessionPill.hidden = !loggedIn;
-  els.authEntryText.textContent = state.view === "auth" ? "Авторизация" : "Вход";
+  els.authEntryText.textContent = state.authOpen ? "Авторизация" : "Вход";
   if (loggedIn) {
     els.sessionLabel.textContent = state.user.username || state.user.email || "user";
   }
@@ -587,9 +595,21 @@ function syncCheckoutContact() {
 }
 
 function toggleCart(open) {
+  if (open) {
+    toggleAuth(false);
+  }
   els.cartDrawer.classList.toggle("open", open);
   els.cartDrawer.setAttribute("aria-hidden", String(!open));
   els.drawerPanel.style.right = open ? "0" : "-100%";
+}
+
+function toggleAuth(open) {
+  state.authOpen = open;
+  els.authDrawer.classList.toggle("open", open);
+  els.authDrawer.setAttribute("aria-hidden", String(!open));
+  els.authPanel.style.right = open ? "0" : "-100%";
+  els.openAuth.classList.toggle("active", open && !state.user);
+  renderSessionControls();
 }
 
 async function submitOrder(event) {
@@ -781,6 +801,7 @@ async function logoutCurrentSession() {
   }
   state.pendingProfileUid = null;
   state.pendingCheckout = false;
+  toggleAuth(false);
   setAdmin(false);
   setSessionUser(null);
   setCheckoutStatus("");
@@ -812,15 +833,14 @@ function setSessionUser(user) {
 function handlePostAuthSuccess() {
   if (state.pendingCheckout) {
     state.pendingCheckout = false;
+    toggleAuth(false);
     navigateToView("store");
     toggleCart(true);
     setCheckoutStatus("Аккаунт подключен. Теперь можно оформить заявку.");
     return;
   }
 
-  if (state.view === "auth") {
-    navigateToView("store");
-  }
+  toggleAuth(false);
 }
 
 async function addProduct(event) {

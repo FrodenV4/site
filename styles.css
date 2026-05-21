@@ -742,46 +742,20 @@ main {
   padding: 18px;
 }
 
-.auth-screen {
-  display: grid;
-  grid-template-columns: minmax(0, 0.95fr) minmax(340px, 0.75fr);
-  gap: 18px;
-  align-items: start;
-  padding: 32px 0 48px;
-}
-
-.auth-hero,
 .auth-card {
-  border: 1px solid var(--line);
-  background: var(--panel-soft);
-  box-shadow: var(--shadow);
+  display: grid;
+  gap: 18px;
 }
 
-.auth-hero {
-  min-height: 100%;
-  padding: 28px;
-  background:
-    radial-gradient(circle at top left, rgba(124, 255, 107, 0.1), transparent 20rem),
-    var(--panel-soft);
+.auth-intro {
+  display: grid;
+  gap: 10px;
 }
 
-.auth-hero h2 {
-  margin: 16px 0 12px;
-  font-size: clamp(34px, 5vw, 54px);
-  line-height: 0.98;
-}
-
-.auth-hero p {
-  max-width: 520px;
+.auth-intro p {
   margin: 0;
   color: var(--muted);
   line-height: 1.7;
-}
-
-.auth-card {
-  display: grid;
-  gap: 18px;
-  padding: 18px;
 }
 
 .auth-switcher {
@@ -956,7 +930,8 @@ main {
   margin-top: 8px;
 }
 
-.cart-drawer {
+.cart-drawer,
+.auth-drawer {
   position: fixed;
   inset: 0;
   z-index: 40;
@@ -967,7 +942,8 @@ main {
   transition: background 0.22s ease;
 }
 
-.cart-drawer.open {
+.cart-drawer.open,
+.auth-drawer.open {
   background: rgba(0, 0, 0, 0.58);
   pointer-events: auto;
 }
@@ -984,9 +960,18 @@ main {
   transition: opacity 0.18s ease;
 }
 
-.cart-drawer.open .drawer-panel {
+.cart-drawer.open .drawer-panel,
+.auth-drawer.open .drawer-panel {
   right: 0;
   transform: none !important;
+}
+
+.auth-drawer {
+  z-index: 42;
+}
+
+.auth-panel {
+  width: min(460px, 100%);
 }
 
 .drawer-head {
@@ -1083,8 +1068,7 @@ svg {
 
   .hero,
   .store-layout,
-  .admin-content,
-  .auth-screen {
+  .admin-content {
     grid-template-columns: 1fr;
   }
 

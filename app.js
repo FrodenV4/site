@@ -12,6 +12,9 @@ const USERNAME_PATTERN = /^[a-z0-9._-]{3,24}$/;
 const INTERNAL_AUTH_DOMAIN = "codeshop.user";
 const ADMIN_PANEL_TOKEN = "HASH#root";
 const THEME_STORAGE_KEY = "codeshop_theme";
+const SURFACE_MODE_STORAGE_KEY = "codeshop_surface_mode";
+const CURRENCY_STORAGE_KEY = "codeshop_currency";
+const USD_EXCHANGE_RATE = 40;
 const ADMIN_EMAILS = ["rootadmin@codeshop.user"];
 const THEME_PRESETS = {
   green: {
@@ -86,8 +89,11 @@ const state = {
   view: "store",
   authOpen: false,
   profileOpen: false,
+  productOpen: false,
   authMode: "login",
   theme: "green",
+  surfaceMode: "dark",
+  currency: "UAH",
   category: "Все",
   search: "",
   sort: "new",
@@ -98,6 +104,10 @@ const state = {
   pendingCheckout: false,
   pendingProfileUid: null,
   checkoutAutofill: "",
+  activeProductId: null,
+  activeProductImageIndex: 0,
+  productMediaLoading: false,
+  productMediaCache: {},
   unsubProducts: null,
   unsubOrders: null,
   unsubUserOrders: null,
@@ -114,6 +124,8 @@ async function init() {
   }
   cacheElements();
   applyAccentTheme(readStoredTheme(), { persist: false });
+  applySurfaceMode(readStoredSurfaceMode(), { persist: false });
+  applyCurrency(readStoredCurrency(), { persist: false });
   renderThemeOptions();
   bindEvents();
   syncAdminNavigation();
@@ -145,6 +157,8 @@ function cacheElements() {
     closeAuth: document.querySelector("#close-auth"),
     profileDrawer: document.querySelector("#profile-drawer"),
     closeProfile: document.querySelector("#close-profile"),
+    productDrawer: document.querySelector("#product-drawer"),
+    closeProduct: document.querySelector("#close-product"),
     cartCount: document.querySelector("#cart-count"),
     cartItems: document.querySelector("#cart-items"),
     cartTotal: document.querySelector("#cart-total"),
@@ -152,6 +166,8 @@ function cacheElements() {
     checkoutStatus: document.querySelector("#checkout-status"),
     checkoutAuthLink: document.querySelector("#checkout-auth-link"),
     checkoutSubmit: document.querySelector("#checkout-form button[type='submit']"),
+    currencyButtons: [...document.querySelectorAll("[data-currency]")],
+    surfaceButtons: [...document.querySelectorAll("[data-surface]")],
     adminToken: document.querySelector("#admin-token"),
     adminLogin: document.querySelector("#admin-login"),
     adminLogout: document.querySelector("#admin-logout"),
@@ -196,6 +212,17 @@ function cacheElements() {
     usernameForm: document.querySelector("#username-form"),
     passwordForm: document.querySelector("#password-form"),
     profileStatus: document.querySelector("#profile-status"),
+    productPreviewImage: document.querySelector("#product-preview-image"),
+    productPreviewType: document.querySelector("#product-preview-type"),
+    productPreviewTitle: document.querySelector("#product-preview-title"),
+    productPreviewMeta: document.querySelector("#product-preview-meta"),
+    productPreviewDescription: document.querySelector("#product-preview-description"),
+    productPreviewTags: document.querySelector("#product-preview-tags"),
+    productPreviewPrice: document.querySelector("#product-preview-price"),
+    productPreviewStock: document.querySelector("#product-preview-stock"),
+    productPreviewThumbs: document.querySelector("#product-preview-thumbs"),
+    productPreviewAdd: document.querySelector("#product-preview-add"),
+    productPreviewStatus: document.querySelector("#product-preview-status"),
   });
 }
 
@@ -243,6 +270,10 @@ function bindEvents() {
   els.profileDrawer.addEventListener("click", (event) => {
     if (event.target === els.profileDrawer) toggleProfile(false);
   });
+  els.closeProduct.addEventListener("click", () => toggleProduct(false));
+  els.productDrawer.addEventListener("click", (event) => {
+    if (event.target === els.productDrawer) toggleProduct(false);
+  });
 
   els.openAuth.addEventListener("click", () => {
     setAuthStatus("");
@@ -273,6 +304,12 @@ function bindEvents() {
     button.addEventListener("click", () => setAuthMode(button.dataset.authMode));
   });
 
+  els.currencyButtons.forEach((button) => {
+    button.addEventListener("click", () => applyCurrency(button.dataset.currency));
+  });
+  els.surfaceButtons.forEach((button) => {
+    button.addEventListener("click", () => applySurfaceMode(button.dataset.surface));
+  });
   els.themeOptions.addEventListener("click", handleThemeOptionClick);
   els.loginForm.addEventListener("submit", userLogin);
   els.registerForm.addEventListener("submit", userRegister);
@@ -282,7 +319,13 @@ function bindEvents() {
   els.adminLogin.addEventListener("click", adminLogin);
   els.adminLogout.addEventListener("click", adminLogout);
   els.productForm.addEventListener("submit", addProduct);
-  els.themeToggle.addEventListener("click", () => document.body.classList.toggle("high-contrast"));
+  els.productPreviewThumbs.addEventListener("click", handleProductThumbClick);
+  els.productPreviewAdd.addEventListener("click", () => {
+    if (state.activeProductId) addToCart(state.activeProductId);
+  });
+  els.themeToggle.addEventListener("click", () => {
+    applySurfaceMode(state.surfaceMode === "dark" ? "light" : "dark");
+  });
 }
 
 function syncViewFromHash() {
@@ -334,6 +377,7 @@ function setView(view, options = {}) {
   toggleCart(false);
   toggleAuth(false);
   toggleProfile(false);
+  toggleProduct(false);
 
   if (options.scrollTarget === "catalog" && view === "store") {
     requestAnimationFrame(() => {
@@ -362,6 +406,16 @@ function readStoredTheme() {
   return THEME_PRESETS[stored] ? stored : "green";
 }
 
+function readStoredSurfaceMode() {
+  const stored = localStorage.getItem(SURFACE_MODE_STORAGE_KEY);
+  return stored === "light" ? "light" : "dark";
+}
+
+function readStoredCurrency() {
+  const stored = localStorage.getItem(CURRENCY_STORAGE_KEY);
+  return stored === "USD" ? "USD" : "UAH";
+}
+
 function applyAccentTheme(themeName, options = {}) {
   const nextTheme = THEME_PRESETS[themeName] ? themeName : "green";
   const preset = THEME_PRESETS[nextTheme];
@@ -378,6 +432,34 @@ function applyAccentTheme(themeName, options = {}) {
   if (els.profileThemeCaption) {
     els.profileThemeCaption.textContent = `${preset.label.toLowerCase()} accent`;
   }
+}
+
+function applySurfaceMode(mode, options = {}) {
+  const nextMode = mode === "light" ? "light" : "dark";
+  state.surfaceMode = nextMode;
+  document.body.dataset.surface = nextMode;
+
+  if (options.persist !== false) {
+    localStorage.setItem(SURFACE_MODE_STORAGE_KEY, nextMode);
+  }
+
+  renderSurfaceControls();
+}
+
+function applyCurrency(currency, options = {}) {
+  const nextCurrency = currency === "USD" ? "USD" : "UAH";
+  state.currency = nextCurrency;
+
+  if (options.persist !== false) {
+    localStorage.setItem(CURRENCY_STORAGE_KEY, nextCurrency);
+  }
+
+  renderCurrencyControls();
+  renderCatalog();
+  renderCart();
+  renderProfile();
+  renderOrders();
+  renderProductModal();
 }
 
 function renderThemeOptions() {
@@ -399,6 +481,29 @@ function renderThemeOptions() {
       <span>${escapeHtml(themeName)}</span>
     `;
     els.themeOptions.append(chip);
+  });
+}
+
+function renderSurfaceControls() {
+  els.surfaceButtons.forEach((button) => {
+    const active = button.dataset.surface === state.surfaceMode;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+
+  const icon = state.surfaceMode === "dark" ? "sun-medium" : "moon-star";
+  const label = state.surfaceMode === "dark" ? "Включить светлую тему" : "Вернуть темную тему";
+  els.themeToggle.innerHTML = `<i data-lucide="${icon}"></i>`;
+  els.themeToggle.setAttribute("aria-label", label);
+  els.themeToggle.setAttribute("title", label);
+  refreshIcons();
+}
+
+function renderCurrencyControls() {
+  els.currencyButtons.forEach((button) => {
+    const active = button.dataset.currency === state.currency;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
   });
 }
 
@@ -619,6 +724,9 @@ function renderAll() {
   renderStats();
   renderSessionControls();
   renderProfile();
+  renderProductModal();
+  renderCurrencyControls();
+  renderSurfaceControls();
   syncCheckoutContact();
   renderCheckoutAccess();
   refreshIcons();
@@ -648,13 +756,15 @@ function renderCatalog() {
 
   products.forEach((product) => {
     const card = els.productTemplate.content.firstElementChild.cloneNode(true);
+    const media = card.querySelector(".product-media");
     const img = card.querySelector("img");
     const title = card.querySelector("h2");
     const description = card.querySelector("p");
     const badge = card.querySelector(".badge");
     const tags = card.querySelector(".tag-list");
     const price = card.querySelector("strong");
-    const button = card.querySelector("button");
+    const openButton = card.querySelector("[data-product-open]");
+    const addButton = card.querySelector("[data-add-cart]");
 
     img.src = product.coverUrl || "";
     img.alt = product.title;
@@ -662,7 +772,11 @@ function renderCatalog() {
     description.textContent = product.description;
     badge.textContent = product.type || product.category || "Digital";
     price.textContent = formatMoney(product.price);
-    button.addEventListener("click", () => addToCart(product.id));
+    media.addEventListener("click", () => openProduct(product.id));
+    title.addEventListener("click", () => openProduct(product.id));
+    title.style.cursor = "pointer";
+    openButton.addEventListener("click", () => openProduct(product.id));
+    addButton.addEventListener("click", () => addToCart(product.id));
 
     (product.tags || []).slice(0, 4).forEach((tag) => {
       const tagEl = document.createElement("span");
@@ -694,6 +808,103 @@ function getFilteredProducts() {
       if (state.sort === "name") return a.title.localeCompare(b.title, "ru");
       return getTime(b.createdAt) - getTime(a.createdAt);
     });
+}
+
+function openProduct(productId) {
+  const product = state.products.find((item) => item.id === productId);
+  if (!product) return;
+
+  state.activeProductId = productId;
+  state.activeProductImageIndex = 0;
+  state.productMediaLoading = true;
+  renderProductModal();
+  toggleProduct(true);
+
+  loadProductMedia(product).catch((error) => {
+    console.error(error);
+    state.productMediaLoading = false;
+    els.productPreviewStatus.textContent = "Не удалось загрузить фото примеров.";
+  });
+}
+
+async function loadProductMedia(product) {
+  const cacheKey = product.id;
+  if (state.productMediaCache[cacheKey]) {
+    state.productMediaLoading = false;
+    renderProductModal();
+    return;
+  }
+
+  const media = [];
+  if (product.coverUrl) media.push(product.coverUrl);
+  if (Array.isArray(product.previewUrls)) {
+    media.push(...product.previewUrls.filter(Boolean));
+  }
+
+  if (state.firebaseReady && product.previewCount) {
+    const { collection, getDocs, orderBy, query } = services.dbApi;
+    const previewsSnap = await getDocs(query(collection(services.db, "products", product.id, "previews"), orderBy("index", "asc")));
+    previewsSnap.forEach((docSnap) => {
+      const data = docSnap.data();
+      if (data?.url) media.push(data.url);
+    });
+  }
+
+  state.productMediaCache[cacheKey] = [...new Set(media.filter(Boolean))];
+  state.productMediaLoading = false;
+  renderProductModal();
+}
+
+function handleProductThumbClick(event) {
+  const button = event.target.closest("[data-image-index]");
+  if (!button) return;
+  state.activeProductImageIndex = Number(button.dataset.imageIndex || 0);
+  renderProductModal();
+}
+
+function renderProductModal() {
+  const product = state.products.find((item) => item.id === state.activeProductId);
+  if (!product) return;
+
+  const images = state.productMediaCache[product.id] || (product.coverUrl ? [product.coverUrl] : []);
+  const nextIndex = Math.min(state.activeProductImageIndex, Math.max(images.length - 1, 0));
+  const selectedImage = images[nextIndex] || "";
+  state.activeProductImageIndex = nextIndex;
+
+  els.productPreviewImage.src = selectedImage;
+  els.productPreviewImage.alt = product.title;
+  els.productPreviewType.textContent = product.type || product.category || "Digital";
+  els.productPreviewTitle.textContent = product.title;
+  els.productPreviewMeta.textContent = [product.category || "Каталог", product.fileName || "Цифровой товар"]
+    .filter(Boolean)
+    .join(" / ");
+  els.productPreviewDescription.textContent = product.description || "Описание появится после загрузки товара.";
+  els.productPreviewPrice.textContent = formatMoney(product.price);
+  els.productPreviewStock.textContent = product.stock > 0 ? `В наличии: ${product.stock}` : "Под заказ";
+  els.productPreviewStatus.textContent = state.productMediaLoading
+    ? "Загружаю фото примеров..."
+    : images.length > 1
+      ? `Доступно ${images.length} изображения`
+      : "Пока доступна только обложка товара.";
+
+  els.productPreviewTags.replaceChildren();
+  (product.tags || []).forEach((tag) => {
+    const tagEl = document.createElement("span");
+    tagEl.textContent = `#${tag}`;
+    els.productPreviewTags.append(tagEl);
+  });
+
+  els.productPreviewThumbs.replaceChildren();
+  images.forEach((image, index) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = `product-thumb${index === state.activeProductImageIndex ? " active" : ""}`;
+    button.dataset.imageIndex = String(index);
+    button.innerHTML = `<img src="${image}" alt="${escapeHtml(`${product.title} ${index + 1}`)}" />`;
+    els.productPreviewThumbs.append(button);
+  });
+
+  refreshIcons();
 }
 
 function addToCart(productId) {
@@ -842,6 +1053,7 @@ function toggleCart(open) {
   if (open) {
     toggleAuth(false);
     toggleProfile(false);
+    toggleProduct(false);
   }
   els.cartDrawer.classList.toggle("open", open);
   els.cartDrawer.setAttribute("aria-hidden", String(!open));
@@ -852,6 +1064,7 @@ function toggleAuth(open) {
   if (open) {
     toggleCart(false);
     toggleProfile(false);
+    toggleProduct(false);
   }
   els.authDrawer.classList.toggle("open", open);
   els.authDrawer.setAttribute("aria-hidden", String(!open));
@@ -864,9 +1077,24 @@ function toggleProfile(open) {
   if (open) {
     toggleCart(false);
     toggleAuth(false);
+    toggleProduct(false);
   }
   els.profileDrawer.classList.toggle("open", open);
   els.profileDrawer.setAttribute("aria-hidden", String(!open));
+}
+
+function toggleProduct(open) {
+  state.productOpen = open;
+  if (open) {
+    toggleCart(false);
+    toggleAuth(false);
+    toggleProfile(false);
+  }
+  if (!open) {
+    state.productMediaLoading = false;
+  }
+  els.productDrawer.classList.toggle("open", open);
+  els.productDrawer.setAttribute("aria-hidden", String(!open));
 }
 
 async function submitOrder(event) {
@@ -1250,6 +1478,9 @@ async function addProduct(event) {
   const formData = new FormData(els.productForm);
   const file = formData.get("file");
   const cover = formData.get("cover");
+  const exampleFiles = formData
+    .getAll("examples")
+    .filter((entry) => entry instanceof File && entry.size);
   const title = String(formData.get("title")).trim();
   const price = Number(formData.get("price"));
 
@@ -1266,13 +1497,14 @@ async function addProduct(event) {
       .filter(Boolean),
     active: true,
     fileName: file?.name || "",
+    previewCount: exampleFiles.length,
   };
 
   try {
     if (state.firebaseReady) {
-      await addFirebaseProduct(product, cover, file);
+      await addFirebaseProduct(product, cover, file, exampleFiles);
     } else {
-      await addDemoProduct(product, cover, file);
+      await addDemoProduct(product, cover, file, exampleFiles);
     }
 
     els.productForm.reset();
@@ -1284,7 +1516,7 @@ async function addProduct(event) {
   }
 }
 
-async function addFirebaseProduct(product, cover, file) {
+async function addFirebaseProduct(product, cover, file, exampleFiles = []) {
   const { collection, doc, serverTimestamp, setDoc } = services.dbApi;
   const productRef = doc(collection(services.db, "products"));
   const productId = productRef.id;
@@ -1303,6 +1535,14 @@ async function addFirebaseProduct(product, cover, file) {
     fileStored = true;
   }
 
+  if (exampleFiles.length > 4) {
+    throw new Error("PREVIEW_LIMIT");
+  }
+
+  if (exampleFiles.length) {
+    await saveProductPreviews(productId, exampleFiles);
+  }
+
   await setDoc(productRef, {
     ...product,
     coverUrl,
@@ -1310,6 +1550,25 @@ async function addFirebaseProduct(product, cover, file) {
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
   });
+}
+
+async function saveProductPreviews(productId, files) {
+  const { doc, serverTimestamp, setDoc } = services.dbApi;
+
+  for (let index = 0; index < files.length; index += 1) {
+    const file = files[index];
+    if (file.size > 350 * 1024) {
+      throw new Error("PREVIEW_TOO_LARGE");
+    }
+
+    const url = await fileToDataUrl(file);
+    await setDoc(doc(services.db, "products", productId, "previews", String(index).padStart(4, "0")), {
+      index,
+      name: file.name,
+      url,
+      createdAt: serverTimestamp(),
+    });
+  }
 }
 
 async function saveFirestoreFile(productId, file) {
@@ -1339,12 +1598,28 @@ async function saveFirestoreFile(productId, file) {
   }
 }
 
-async function addDemoProduct(product, cover, file) {
+async function addDemoProduct(product, cover, file, exampleFiles = []) {
+  if (exampleFiles.length > 4) {
+    throw new Error("PREVIEW_LIMIT");
+  }
+
+  for (const example of exampleFiles) {
+    if (example.size > 350 * 1024) {
+      throw new Error("PREVIEW_TOO_LARGE");
+    }
+  }
+
   const coverUrl = cover && cover.size ? await fileToDataUrl(cover) : "";
+  const previewUrls = [];
+  for (const example of exampleFiles) {
+    previewUrls.push(await fileToDataUrl(example));
+  }
   const next = normalizeProduct({
     ...product,
     id: crypto.randomUUID(),
     coverUrl,
+    previewUrls,
+    previewCount: previewUrls.length,
     fileName: file?.name || "",
     fileSize: file?.size || 0,
     createdAt: Date.now(),
@@ -1445,6 +1720,8 @@ function normalizeProduct(product) {
     price: Number(product.price || 0),
     stock: Number(product.stock || 0),
     tags: Array.isArray(product.tags) ? product.tags : [],
+    previewCount: Number(product.previewCount || 0),
+    previewUrls: Array.isArray(product.previewUrls) ? product.previewUrls.filter(Boolean) : [],
   };
 }
 
@@ -1483,6 +1760,14 @@ function mapProductError(error) {
 
   if (message.includes("COVER_TOO_LARGE")) {
     return "Обложка слишком большая. Загрузи изображение до 600 КБ.";
+  }
+
+  if (message.includes("PREVIEW_TOO_LARGE")) {
+    return "Фото примера слишком большое. Каждое изображение должно быть до 350 КБ.";
+  }
+
+  if (message.includes("PREVIEW_LIMIT")) {
+    return "Можно добавить до 4 фото примеров на один товар.";
   }
 
   if (message.includes("FILE_TOO_LARGE")) {
@@ -1535,11 +1820,22 @@ function setProfileStatus(message, error = false) {
 }
 
 function formatMoney(value) {
-  return new Intl.NumberFormat("ru-RU", {
+  const amount = Number(value || 0);
+
+  if (state.currency === "USD") {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }).format(amount / USD_EXCHANGE_RATE);
+  }
+
+  return new Intl.NumberFormat("uk-UA", {
     style: "currency",
-    currency: "RUB",
+    currency: "UAH",
     maximumFractionDigits: 0,
-  }).format(Number(value || 0));
+  }).format(amount);
 }
 
 function plural(value, forms) {

@@ -36,6 +36,16 @@
         <button class="icon-button" id="theme-toggle" type="button" aria-label="Сменить яркость" title="Сменить яркость">
           <i data-lucide="contrast"></i>
         </button>
+        <button class="ghost-link auth-entry-button" id="open-auth" type="button">
+          <i data-lucide="log-in"></i>
+          <span id="auth-entry-text">Вход</span>
+        </button>
+        <div class="session-pill" id="session-pill" hidden>
+          <span id="session-label">guest</span>
+          <button class="icon-button" id="session-logout" type="button" aria-label="Выйти" title="Выйти">
+            <i data-lucide="log-out"></i>
+          </button>
+        </div>
         <button class="cart-button" id="open-cart" type="button">
           <i data-lucide="shopping-bag"></i>
           <span>Корзина</span>
@@ -158,6 +168,70 @@
         </section>
       </div>
 
+      <div class="page-view page-view-auth" id="auth" data-view="auth" hidden>
+        <section class="auth-screen">
+          <div class="auth-hero">
+            <span class="eyebrow">secure entry</span>
+            <h2>Вход и регистрация</h2>
+            <p>
+              Войди в аккаунт, чтобы оформить заявку, сохранить контакт и получить
+              доступ к покупкам через личный логин.
+            </p>
+          </div>
+
+          <div class="auth-card">
+            <div class="auth-switcher" role="tablist" aria-label="Авторизация">
+              <button class="auth-tab active" id="tab-login" type="button" data-auth-mode="login" aria-selected="true">
+                Вход
+              </button>
+              <button class="auth-tab" id="tab-register" type="button" data-auth-mode="register" aria-selected="false">
+                Регистрация
+              </button>
+            </div>
+
+            <form class="auth-form" id="login-form">
+              <label class="field">
+                <span>Логин</span>
+                <input name="username" maxlength="24" autocomplete="username" placeholder="neo.user" required />
+              </label>
+              <label class="field">
+                <span>Пароль</span>
+                <input name="password" type="password" minlength="6" autocomplete="current-password" placeholder="******" required />
+              </label>
+              <button class="primary-button wide" type="submit">
+                <i data-lucide="log-in"></i>
+                Войти
+              </button>
+            </form>
+
+            <form class="auth-form" id="register-form" hidden>
+              <label class="field">
+                <span>Логин</span>
+                <input name="username" maxlength="24" autocomplete="username" placeholder="neo.user" required />
+              </label>
+              <label class="field">
+                <span>Почта</span>
+                <input name="email" type="email" autocomplete="email" placeholder="name@example.com" required />
+              </label>
+              <label class="field">
+                <span>Пароль</span>
+                <input name="password" type="password" minlength="6" autocomplete="new-password" placeholder="Не короче 6 символов" required />
+              </label>
+              <label class="field">
+                <span>Повтор пароля</span>
+                <input name="confirmPassword" type="password" minlength="6" autocomplete="new-password" placeholder="Повтори пароль" required />
+              </label>
+              <button class="primary-button wide" type="submit">
+                <i data-lucide="user-plus"></i>
+                Создать аккаунт
+              </button>
+            </form>
+
+            <div class="auth-status" id="auth-status" role="status"></div>
+          </div>
+        </section>
+      </div>
+
       <div class="page-view page-view-admin" id="admin" data-view="admin" hidden>
         <section class="admin-panel">
           <div class="admin-head">
@@ -275,6 +349,10 @@
             Оформить заявку
           </button>
           <span id="checkout-status" role="status"></span>
+          <button class="ghost-link wide" id="checkout-auth-link" type="button" hidden>
+            <i data-lucide="shield-user"></i>
+            Войти для оформления
+          </button>
         </form>
       </div>
     </aside>

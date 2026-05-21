@@ -11,9 +11,47 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
     }
 
+    function validUsername(value) {
+      return value is string
+        && value.size() >= 3
+        && value.size() <= 24
+        && value.matches('^[a-z0-9._-]+$');
+    }
+
+    function validEmail(value) {
+      return value is string
+        && value.size() >= 6
+        && value.size() <= 120
+        && value.matches('^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$');
+    }
+
+    function validContact(value) {
+      return value is string
+        && value.size() >= 3
+        && value.size() <= 120;
+    }
+
+    function validComment(value) {
+      return value is string
+        && value.size() <= 260;
+    }
+
     match /admins/{uid} {
       allow read: if signedIn() && request.auth.uid == uid;
       allow write: if false;
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && request.auth.uid == uid;
+      allow create: if signedIn()
+        && request.auth.uid == uid
+        && request.resource.data.uid == request.auth.uid
+        && validUsername(request.resource.data.username)
+        && validUsername(request.resource.data.usernameKey)
+        && request.resource.data.username == request.resource.data.usernameKey
+        && validEmail(request.resource.data.email)
+        && request.resource.data.role == "user";
+      allow update, delete: if false;
     }
 
     match /products/{productId} {
@@ -30,11 +68,12 @@ service cloud.firestore {
     }
 
     match /orders/{orderId} {
-      allow create: if request.resource.data.contact is string
-        && request.resource.data.contact.size() >= 3
-        && request.resource.data.contact.size() <= 120
-        && request.resource.data.comment is string
-        && request.resource.data.comment.size() <= 260
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && validUsername(request.resource.data.username)
+        && validEmail(request.resource.data.email)
+        && validContact(request.resource.data.contact)
+        && validComment(request.resource.data.comment)
         && request.resource.data.items is list
         && request.resource.data.items.size() > 0
         && request.resource.data.items.size() <= 20

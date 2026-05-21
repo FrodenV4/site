@@ -6,7 +6,7 @@
 
 - `index.html`, `styles.css`, `app.js` - статический сайт без платного backend.
 - Firebase Hosting для деплоя.
-- Firebase Auth для входа продавца.
+- Firebase Auth для входа продавца и пользовательских аккаунтов.
 - Cloud Firestore для товаров и заявок.
 - Cloud Firestore для небольших цифровых файлов: файлы сохраняются чанками без Firebase Storage.
 - `firestore.rules` и `storage.rules` - правила для публичной витрины и закрытой админки.
@@ -28,10 +28,11 @@ python -m http.server 4173
 1. Создай проект в Firebase Console на бесплатном Spark plan.
 2. Включи Authentication -> Email/Password.
 3. Создай пользователя-продавца в Authentication.
-4. Включи Firestore Database.
-5. В Project settings -> Your apps создай Web app и скопируй config в начало `app.js`.
-6. В `.firebaserc` замени `YOUR_PROJECT_ID` на id проекта.
-7. Узнай UID продавца в Authentication и создай документ `admins/{UID}` в Firestore. Внутри можно оставить поле `role: "owner"`.
+4. Для покупателей отдельные аккаунты будут создаваться прямо на сайте через раздел авторизации.
+5. Включи Firestore Database.
+6. В Project settings -> Your apps создай Web app и скопируй config в начало `app.js`.
+7. В `.firebaserc` замени `YOUR_PROJECT_ID` на id проекта.
+8. Узнай UID продавца в Authentication и создай документ `admins/{UID}` в Firestore. Внутри можно оставить поле `role: "owner"`.
 
 ## Деплой
 

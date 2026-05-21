@@ -8,6 +8,9 @@ const firebaseConfig = {
   measurementId: "G-HP93DJJEKP",
 };
 
+const USERNAME_PATTERN = /^[a-z0-9._-]{3,24}$/;
+const INTERNAL_AUTH_DOMAIN = "codeshop.user";
+
 const demoProducts = [
   {
     id: "demo-1",
@@ -53,13 +56,18 @@ const demoProducts = [
 const state = {
   firebaseReady: false,
   admin: false,
+  user: null,
   view: "store",
+  authMode: "login",
   category: "Все",
   search: "",
   sort: "new",
   products: [],
   orders: [],
   cart: [],
+  pendingCheckout: false,
+  pendingProfileUid: null,
+  checkoutAutofill: "",
   unsubProducts: null,
   unsubOrders: null,
 };
@@ -73,6 +81,7 @@ async function init() {
   cacheElements();
   bindEvents();
   syncAdminNavigation();
+  setAuthMode("login");
   syncViewFromHash();
   startAmbientCanvas();
   await initFirebase();
@@ -101,6 +110,8 @@ function cacheElements() {
     cartTotal: document.querySelector("#cart-total"),
     checkoutForm: document.querySelector("#checkout-form"),
     checkoutStatus: document.querySelector("#checkout-status"),
+    checkoutAuthLink: document.querySelector("#checkout-auth-link"),
+    checkoutSubmit: document.querySelector("#checkout-form button[type='submit']"),
     adminEmail: document.querySelector("#admin-email"),
     adminPassword: document.querySelector("#admin-password"),
     adminLogin: document.querySelector("#admin-login"),
@@ -118,6 +129,15 @@ function cacheElements() {
     pageViews: [...document.querySelectorAll(".page-view")],
     navLinks: [...document.querySelectorAll(".nav-link")],
     adminNavLink: document.querySelector(".nav-admin"),
+    openAuth: document.querySelector("#open-auth"),
+    authEntryText: document.querySelector("#auth-entry-text"),
+    sessionPill: document.querySelector("#session-pill"),
+    sessionLabel: document.querySelector("#session-label"),
+    sessionLogout: document.querySelector("#session-logout"),
+    authTabs: [...document.querySelectorAll(".auth-tab")],
+    loginForm: document.querySelector("#login-form"),
+    registerForm: document.querySelector("#register-form"),
+    authStatus: document.querySelector("#auth-status"),
   });
 }
 
@@ -149,6 +169,25 @@ function bindEvents() {
     if (event.target === els.cartDrawer) toggleCart(false);
   });
 
+  els.openAuth.addEventListener("click", () => {
+    setAuthStatus("");
+    navigateToView("auth");
+  });
+
+  els.sessionLogout.addEventListener("click", logoutCurrentSession);
+  els.checkoutAuthLink.addEventListener("click", () => {
+    state.pendingCheckout = true;
+    toggleCart(false);
+    setAuthStatus("Войди или создай аккаунт, чтобы оформить заявку.");
+    navigateToView("auth");
+  });
+
+  els.authTabs.forEach((button) => {
+    button.addEventListener("click", () => setAuthMode(button.dataset.authMode));
+  });
+
+  els.loginForm.addEventListener("submit", userLogin);
+  els.registerForm.addEventListener("submit", userRegister);
   els.checkoutForm.addEventListener("submit", submitOrder);
   els.adminLogin.addEventListener("click", adminLogin);
   els.adminLogout.addEventListener("click", adminLogout);
@@ -167,8 +206,18 @@ function getViewFromHash(hash) {
     .toLowerCase();
 
   if (route === "deals") return "deals";
+  if (route === "auth") return "auth";
   if (route === "admin") return "admin";
   return "store";
+}
+
+function navigateToView(view) {
+  const nextHash = `#${view}`;
+  if (window.location.hash !== nextHash) {
+    window.location.hash = nextHash;
+    return;
+  }
+  setView(view);
 }
 
 function setView(view) {
@@ -185,6 +234,18 @@ function setView(view) {
     link.classList.toggle("active", active);
     if (active) link.setAttribute("aria-current", "page");
     else link.removeAttribute("aria-current");
+  });
+}
+
+function setAuthMode(mode) {
+  state.authMode = mode === "register" ? "register" : "login";
+  const isRegister = state.authMode === "register";
+  els.loginForm.hidden = isRegister;
+  els.registerForm.hidden = !isRegister;
+  els.authTabs.forEach((button) => {
+    const active = button.dataset.authMode === state.authMode;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-selected", String(active));
   });
 }
 
@@ -222,23 +283,65 @@ function isFirebaseConfigured() {
   return Object.values(firebaseConfig).every((value) => value && !String(value).includes("YOUR_"));
 }
 
-async function handleAuthState(user) {
-  if (!state.firebaseReady || !user) {
+async function handleAuthState(firebaseUser) {
+  if (!state.firebaseReady || !firebaseUser) {
+    state.pendingProfileUid = null;
     setAdmin(false);
+    setSessionUser(null);
     return;
   }
 
   const { doc, getDoc } = services.dbApi;
-  const adminSnap = await getDoc(doc(services.db, "admins", user.uid));
-  if (!adminSnap.exists()) {
-    await services.authApi.signOut(services.auth);
-    setAdmin(false);
-    setFormStatus("UID не найден в admins. Добавь его в Firestore.", true);
+  let userSnap = await getDoc(doc(services.db, "users", firebaseUser.uid));
+  const adminSnap = await getDoc(doc(services.db, "admins", firebaseUser.uid));
+
+  if (!userSnap.exists() && state.pendingProfileUid === firebaseUser.uid) {
+    userSnap = await waitForUserProfile(firebaseUser.uid);
+  }
+
+  if (userSnap.exists()) {
+    const profile = userSnap.data();
+    state.pendingProfileUid = null;
+    setAdmin(Boolean(adminSnap.exists()));
+    setSessionUser({
+      uid: firebaseUser.uid,
+      username: profile.username || profile.usernameKey || "user",
+      email: profile.email || "",
+      isAdmin: Boolean(adminSnap.exists()),
+    });
+    listenOrders();
+    handlePostAuthSuccess();
     return;
   }
 
-  setAdmin(true);
-  listenOrders();
+  if (adminSnap.exists()) {
+    state.pendingProfileUid = null;
+    setAdmin(true);
+    setSessionUser({
+      uid: firebaseUser.uid,
+      username: firebaseUser.email || "admin",
+      email: firebaseUser.email || "",
+      isAdmin: true,
+    });
+    listenOrders();
+    handlePostAuthSuccess();
+    return;
+  }
+
+  await services.authApi.signOut(services.auth);
+  setAdmin(false);
+  setSessionUser(null);
+  setAuthStatus("Аккаунт не настроен. Повтори вход или регистрацию.", true);
+}
+
+async function waitForUserProfile(uid) {
+  const { doc, getDoc } = services.dbApi;
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const snapshot = await getDoc(doc(services.db, "users", uid));
+    if (snapshot.exists()) return snapshot;
+    await wait(200);
+  }
+  return { exists: () => false };
 }
 
 function listenProducts() {
@@ -266,7 +369,8 @@ function listenOrders() {
 function loadDemoData() {
   state.products = readJson("nv_products", demoProducts).map(normalizeProduct);
   state.orders = readJson("nv_orders", []);
-  els.modeNote.textContent = "Demo: пароль админки demo. После вставки Firebase config данные будут храниться в Firebase.";
+  els.modeNote.textContent = "Demo: пароль админки demo. Пользовательская регистрация и оформление заявок доступны после подключения Firebase Auth и Firestore.";
+  setAuthStatus("В demo-режиме регистрация отключена. Подключи Firebase, чтобы включить пользовательские аккаунты.");
 }
 
 function readJson(key, fallback) {
@@ -287,6 +391,9 @@ function renderAll() {
   renderCart();
   renderOrders();
   renderStats();
+  renderSessionControls();
+  syncCheckoutContact();
+  renderCheckoutAccess();
   refreshIcons();
 }
 
@@ -410,7 +517,41 @@ function renderCart() {
 
   els.cartTotal.textContent = formatMoney(total);
   els.cartCount.textContent = count;
+  renderCheckoutAccess();
   refreshIcons();
+}
+
+function renderSessionControls() {
+  const loggedIn = Boolean(state.user);
+  els.openAuth.hidden = loggedIn;
+  els.sessionPill.hidden = !loggedIn;
+  if (loggedIn) {
+    els.sessionLabel.textContent = state.user.username || state.user.email || "user";
+  }
+}
+
+function renderCheckoutAccess() {
+  const guest = !state.user;
+  const hasItems = state.cart.length > 0;
+  els.checkoutAuthLink.hidden = !guest || !hasItems;
+  els.checkoutAuthLink.disabled = !state.firebaseReady;
+  els.checkoutSubmit.disabled = !hasItems;
+}
+
+function syncCheckoutContact() {
+  const input = els.checkoutForm.elements.contact;
+  if (!input) return;
+
+  if (state.checkoutAutofill && input.value === state.checkoutAutofill) {
+    input.value = "";
+  }
+
+  const nextAutofill = state.user?.email || "";
+  if (nextAutofill && !input.value) {
+    input.value = nextAutofill;
+  }
+
+  state.checkoutAutofill = nextAutofill;
 }
 
 function toggleCart(open) {
@@ -423,6 +564,13 @@ async function submitOrder(event) {
   event.preventDefault();
   if (!state.cart.length) {
     setCheckoutStatus("Добавь товар в корзину.", true);
+    return;
+  }
+
+  if (!state.user) {
+    state.pendingCheckout = true;
+    setCheckoutStatus("Войди в аккаунт, чтобы оформить заявку.", true);
+    els.checkoutAuthLink.hidden = false;
     return;
   }
 
@@ -441,6 +589,9 @@ async function submitOrder(event) {
     .filter(Boolean);
 
   const order = {
+    userId: state.user.uid,
+    username: state.user.username,
+    email: state.user.email,
     contact: String(formData.get("contact")).trim(),
     comment: String(formData.get("comment") || "").trim(),
     items: orderItems,
@@ -459,11 +610,103 @@ async function submitOrder(event) {
 
     state.cart = [];
     els.checkoutForm.reset();
+    syncCheckoutContact();
     renderAll();
     setCheckoutStatus("Заявка создана. Продавец свяжется по указанному контакту.");
   } catch (error) {
     console.error(error);
     setCheckoutStatus("Не удалось создать заявку. Проверь Firebase rules.", true);
+  }
+}
+
+async function userLogin(event) {
+  event.preventDefault();
+  if (!state.firebaseReady) {
+    setAuthStatus("Firebase Auth пока не активен для этой сборки.", true);
+    return;
+  }
+
+  const formData = new FormData(els.loginForm);
+  const normalized = normalizeUsername(formData.get("username"));
+  const password = String(formData.get("password") || "").trim();
+
+  if (!validateUsername(normalized.key)) {
+    setAuthStatus("Логин должен быть 3-24 символа и содержать только a-z, 0-9, точку, дефис или нижнее подчеркивание.", true);
+    return;
+  }
+
+  if (password.length < 6) {
+    setAuthStatus("Пароль должен быть не короче 6 символов.", true);
+    return;
+  }
+
+  try {
+    await services.authApi.signInWithEmailAndPassword(services.auth, buildInternalEmail(normalized.key), password);
+    setAuthStatus("Вход выполнен.");
+    els.loginForm.reset();
+  } catch (error) {
+    console.error(error);
+    setAuthStatus(mapAuthError(error, "Не удалось войти. Проверь логин и пароль."), true);
+  }
+}
+
+async function userRegister(event) {
+  event.preventDefault();
+  if (!state.firebaseReady) {
+    setAuthStatus("Firebase Auth пока не активен для этой сборки.", true);
+    return;
+  }
+
+  const formData = new FormData(els.registerForm);
+  const normalized = normalizeUsername(formData.get("username"));
+  const email = String(formData.get("email") || "").trim().toLowerCase();
+  const password = String(formData.get("password") || "").trim();
+  const confirmPassword = String(formData.get("confirmPassword") || "").trim();
+
+  if (!validateUsername(normalized.key)) {
+    setAuthStatus("Логин должен быть 3-24 символа и содержать только a-z, 0-9, точку, дефис или нижнее подчеркивание.", true);
+    return;
+  }
+
+  if (!isValidEmail(email)) {
+    setAuthStatus("Укажи корректную почту.", true);
+    return;
+  }
+
+  if (password.length < 6) {
+    setAuthStatus("Пароль должен быть не короче 6 символов.", true);
+    return;
+  }
+
+  if (password !== confirmPassword) {
+    setAuthStatus("Пароли не совпадают.", true);
+    return;
+  }
+
+  try {
+    const credential = await services.authApi.createUserWithEmailAndPassword(
+      services.auth,
+      buildInternalEmail(normalized.key),
+      password,
+    );
+
+    state.pendingProfileUid = credential.user.uid;
+    const { doc, serverTimestamp, setDoc } = services.dbApi;
+    await setDoc(doc(services.db, "users", credential.user.uid), {
+      uid: credential.user.uid,
+      username: normalized.key,
+      usernameKey: normalized.key,
+      email,
+      role: "user",
+      createdAt: serverTimestamp(),
+    });
+
+    state.pendingProfileUid = null;
+    setAuthStatus("Аккаунт создан. Вход выполнен.");
+    els.registerForm.reset();
+  } catch (error) {
+    console.error(error);
+    setAuthStatus(mapAuthError(error, "Не удалось создать аккаунт. Попробуй позже."), true);
   }
 }
 
@@ -484,6 +727,12 @@ async function adminLogin() {
 
   if (password === "demo") {
     setAdmin(true);
+    setSessionUser({
+      uid: "demo-admin",
+      username: "admin",
+      email,
+      isAdmin: true,
+    });
     setFormStatus("Demo-админка активна.");
   } else {
     setFormStatus("Для demo-режима пароль: demo", true);
@@ -491,10 +740,19 @@ async function adminLogin() {
 }
 
 async function adminLogout() {
+  await logoutCurrentSession();
+}
+
+async function logoutCurrentSession() {
   if (state.firebaseReady) {
     await services.authApi.signOut(services.auth);
   }
+  state.pendingProfileUid = null;
+  state.pendingCheckout = false;
   setAdmin(false);
+  setSessionUser(null);
+  setCheckoutStatus("");
+  setAuthStatus("");
 }
 
 function setAdmin(value) {
@@ -502,8 +760,35 @@ function setAdmin(value) {
   els.adminContent.hidden = !value;
   els.adminLogout.hidden = !value;
   els.adminLogin.hidden = value;
+  if (!value) {
+    state.unsubOrders?.();
+    state.unsubOrders = null;
+    state.orders = [];
+  }
   syncAdminNavigation();
   renderOrders();
+  renderSessionControls();
+}
+
+function setSessionUser(user) {
+  state.user = user;
+  renderSessionControls();
+  syncCheckoutContact();
+  renderCheckoutAccess();
+}
+
+function handlePostAuthSuccess() {
+  if (state.pendingCheckout) {
+    state.pendingCheckout = false;
+    navigateToView("store");
+    toggleCart(true);
+    setCheckoutStatus("Аккаунт подключен. Теперь можно оформить заявку.");
+    return;
+  }
+
+  if (state.view === "auth") {
+    navigateToView("store");
+  }
 }
 
 async function addProduct(event) {
@@ -544,7 +829,7 @@ async function addProduct(event) {
     renderAll();
   } catch (error) {
     console.error(error);
-    setFormStatus("Не удалось добавить товар. Проверь Firebase Storage/Firestore rules.", true);
+    setFormStatus("Не удалось добавить товар. Проверь Firestore rules.", true);
   }
 }
 
@@ -634,8 +919,9 @@ function renderOrders() {
     const card = document.createElement("article");
     card.className = "order-card";
     const items = (order.items || []).map((item) => `${item.title} x${item.qty}`).join(", ");
+    const headline = order.username ? `${order.username} | ${order.contact || "Без контакта"}` : order.contact || "Без контакта";
     card.innerHTML = `
-      <h3>${escapeHtml(order.contact || "Без контакта")}</h3>
+      <h3>${escapeHtml(headline)}</h3>
       <p>${escapeHtml(items || "Без товаров")}</p>
       <p>${formatMoney(order.total || 0)} | ${escapeHtml(order.status || "new")}</p>
       <p>${escapeHtml(order.comment || "")}</p>
@@ -709,6 +995,33 @@ function normalizeProduct(product) {
   };
 }
 
+function normalizeUsername(value) {
+  const key = String(value || "").trim().toLowerCase();
+  return { key, username: key };
+}
+
+function validateUsername(username) {
+  return USERNAME_PATTERN.test(username);
+}
+
+function buildInternalEmail(usernameKey) {
+  return `${usernameKey}@${INTERNAL_AUTH_DOMAIN}`;
+}
+
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || "").trim());
+}
+
+function mapAuthError(error, fallback) {
+  const code = error?.code || "";
+  if (code === "auth/email-already-in-use") return "Этот логин уже занят.";
+  if (code === "auth/invalid-email") return "Не удалось обработать логин или почту.";
+  if (code === "auth/weak-password") return "Пароль слишком простой.";
+  if (code === "auth/invalid-credential") return "Неверный логин или пароль.";
+  if (code === "auth/user-disabled") return "Аккаунт отключен.";
+  return fallback;
+}
+
 function setFormStatus(message, error = false) {
   els.formStatus.textContent = message;
   els.formStatus.style.color = error ? "var(--danger)" : "var(--muted)";
@@ -717,6 +1030,11 @@ function setFormStatus(message, error = false) {
 function setCheckoutStatus(message, error = false) {
   els.checkoutStatus.textContent = message;
   els.checkoutStatus.style.color = error ? "var(--danger)" : "var(--muted)";
+}
+
+function setAuthStatus(message, error = false) {
+  els.authStatus.textContent = message;
+  els.authStatus.style.color = error ? "var(--danger)" : "var(--muted)";
 }
 
 function formatMoney(value) {
@@ -743,14 +1061,6 @@ function getTime(value) {
   return Number(new Date(value)) || 0;
 }
 
-function safeName(name) {
-  return String(name)
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, "-")
-    .replace(/-+/g, "-")
-    .slice(0, 90);
-}
-
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -758,6 +1068,10 @@ function fileToDataUrl(file) {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 function escapeHtml(value) {

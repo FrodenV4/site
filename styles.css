@@ -812,6 +812,10 @@ main {
   gap: 12px;
 }
 
+.auth-form[hidden] {
+  display: none !important;
+}
+
 .auth-status {
   min-height: 24px;
   color: var(--muted);

@@ -499,6 +499,7 @@ async function handleAuthState(firebaseUser) {
     setSessionUser({
       uid: firebaseUser.uid,
       username: profile.username || profile.usernameKey || "user",
+      usernameKey: profile.usernameKey || profile.username || "user",
       email: profile.email || "",
       theme: profile.theme || state.theme,
       isAdmin: adminAccess,
@@ -515,6 +516,7 @@ async function handleAuthState(firebaseUser) {
     setSessionUser({
       uid: firebaseUser.uid,
       username: getAdminDisplayName(firebaseUser),
+      usernameKey: normalizeUsername(getAdminDisplayName(firebaseUser)).key,
       email: firebaseUser.email || "",
       theme: readStoredTheme(),
       isAdmin: true,
@@ -882,6 +884,7 @@ async function submitOrder(event) {
   }
 
   const formData = new FormData(els.checkoutForm);
+  const orderUsername = state.user.usernameKey || normalizeUsername(state.user.username).key;
   const orderItems = state.cart
     .map((line) => {
       const product = state.products.find((item) => item.id === line.id);
@@ -897,7 +900,7 @@ async function submitOrder(event) {
 
   const order = {
     userId: state.user.uid,
-    username: state.user.username,
+    username: orderUsername,
     email: state.user.email,
     contact: String(formData.get("contact")).trim(),
     comment: String(formData.get("comment") || "").trim(),
@@ -922,7 +925,7 @@ async function submitOrder(event) {
     setCheckoutStatus("Заявка создана. Продавец свяжется по указанному контакту.");
   } catch (error) {
     console.error(error);
-    setCheckoutStatus("Не удалось создать заявку. Проверь Firebase rules.", true);
+    setCheckoutStatus(mapCheckoutError(error), true);
   }
 }
 
@@ -1495,6 +1498,20 @@ function mapProductError(error) {
   }
 
   return "Не удалось добавить товар. Проверь размер файлов и активность админ-сессии.";
+}
+
+function mapCheckoutError(error) {
+  const code = error?.code || "";
+
+  if (code === "permission-denied") {
+    return "Не удалось создать заявку. Проверь логин аккаунта и заполнение формы.";
+  }
+
+  if (code === "unauthenticated") {
+    return "Сессия истекла. Войди заново и повтори.";
+  }
+
+  return "Не удалось создать заявку. Попробуй ещё раз.";
 }
 
 function setFormStatus(message, error = false) {

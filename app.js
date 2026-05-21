@@ -59,18 +59,21 @@ const state = {
   user: null,
   view: "store",
   authOpen: false,
+  profileOpen: false,
   authMode: "login",
   category: "Все",
   search: "",
   sort: "new",
   products: [],
   orders: [],
+  userOrders: [],
   cart: [],
   pendingCheckout: false,
   pendingProfileUid: null,
   checkoutAutofill: "",
   unsubProducts: null,
   unsubOrders: null,
+  unsubUserOrders: null,
 };
 
 const services = {};
@@ -106,12 +109,13 @@ function cacheElements() {
     catalogCount: document.querySelector("#catalog-count"),
     emptyState: document.querySelector("#empty-state"),
     cartDrawer: document.querySelector("#cart-drawer"),
-    drawerPanel: document.querySelector(".drawer-panel"),
     openCart: document.querySelector("#open-cart"),
     closeCart: document.querySelector("#close-cart"),
     authDrawer: document.querySelector("#auth-drawer"),
     authPanel: document.querySelector(".auth-panel"),
     closeAuth: document.querySelector("#close-auth"),
+    profileDrawer: document.querySelector("#profile-drawer"),
+    closeProfile: document.querySelector("#close-profile"),
     cartCount: document.querySelector("#cart-count"),
     cartItems: document.querySelector("#cart-items"),
     cartTotal: document.querySelector("#cart-total"),
@@ -141,11 +145,23 @@ function cacheElements() {
     authEntryText: document.querySelector("#auth-entry-text"),
     sessionPill: document.querySelector("#session-pill"),
     sessionLabel: document.querySelector("#session-label"),
+    openProfile: document.querySelector("#open-profile"),
     sessionLogout: document.querySelector("#session-logout"),
     authTabs: [...document.querySelectorAll(".auth-tab")],
     loginForm: document.querySelector("#login-form"),
     registerForm: document.querySelector("#register-form"),
     authStatus: document.querySelector("#auth-status"),
+    profileName: document.querySelector("#profile-name"),
+    profileEmail: document.querySelector("#profile-email"),
+    profileRoleLabel: document.querySelector("#profile-role-label"),
+    profileUsername: document.querySelector("#profile-username"),
+    profileAccess: document.querySelector("#profile-access"),
+    profileOrdersCount: document.querySelector("#profile-orders-count"),
+    profileCartCount: document.querySelector("#profile-cart-count"),
+    profileOrdersCaption: document.querySelector("#profile-orders-caption"),
+    profileOrdersList: document.querySelector("#profile-orders-list"),
+    profileOpenCart: document.querySelector("#profile-open-cart"),
+    profileOpenAdmin: document.querySelector("#profile-open-admin"),
   });
 }
 
@@ -189,19 +205,34 @@ function bindEvents() {
   els.authDrawer.addEventListener("click", (event) => {
     if (event.target === els.authDrawer) toggleAuth(false);
   });
+  els.closeProfile.addEventListener("click", () => toggleProfile(false));
+  els.profileDrawer.addEventListener("click", (event) => {
+    if (event.target === els.profileDrawer) toggleProfile(false);
+  });
 
   els.openAuth.addEventListener("click", () => {
     setAuthStatus("");
+    toggleProfile(false);
     toggleCart(false);
     toggleAuth(true);
   });
 
+  els.openProfile.addEventListener("click", () => toggleProfile(true));
   els.sessionLogout.addEventListener("click", logoutCurrentSession);
   els.checkoutAuthLink.addEventListener("click", () => {
     state.pendingCheckout = true;
+    toggleProfile(false);
     toggleCart(false);
     setAuthStatus("Войди или создай аккаунт, чтобы оформить заявку.");
     toggleAuth(true);
+  });
+  els.profileOpenCart.addEventListener("click", () => {
+    toggleProfile(false);
+    toggleCart(true);
+  });
+  els.profileOpenAdmin.addEventListener("click", () => {
+    toggleProfile(false);
+    navigateToView("admin");
   });
 
   els.authTabs.forEach((button) => {
@@ -265,6 +296,7 @@ function setView(view, options = {}) {
 
   toggleCart(false);
   toggleAuth(false);
+  toggleProfile(false);
 
   if (options.scrollTarget === "catalog" && view === "store") {
     requestAnimationFrame(() => {
@@ -325,6 +357,9 @@ function isFirebaseConfigured() {
 async function handleAuthState(firebaseUser) {
   if (!state.firebaseReady || !firebaseUser) {
     state.pendingProfileUid = null;
+    state.unsubUserOrders?.();
+    state.unsubUserOrders = null;
+    state.userOrders = [];
     setAdmin(false);
     setSessionUser(null);
     return;
@@ -348,6 +383,7 @@ async function handleAuthState(firebaseUser) {
       email: profile.email || "",
       isAdmin: Boolean(adminSnap.exists()),
     });
+    listenUserOrders(firebaseUser.uid);
     listenOrders();
     handlePostAuthSuccess();
     return;
@@ -362,6 +398,9 @@ async function handleAuthState(firebaseUser) {
       email: firebaseUser.email || "",
       isAdmin: true,
     });
+    state.unsubUserOrders?.();
+    state.unsubUserOrders = null;
+    state.userOrders = [];
     listenOrders();
     handlePostAuthSuccess();
     return;
@@ -394,7 +433,12 @@ function listenProducts() {
 }
 
 function listenOrders() {
-  if (!state.admin || !state.firebaseReady) return;
+  if (!state.admin || !state.firebaseReady) {
+    state.unsubOrders?.();
+    state.unsubOrders = null;
+    state.orders = [];
+    return;
+  }
   const { collection, onSnapshot, orderBy, query } = services.dbApi;
   const ordersQuery = query(collection(services.db, "orders"), orderBy("createdAt", "desc"));
   state.unsubOrders?.();
@@ -402,6 +446,25 @@ function listenOrders() {
     state.orders = snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }));
     renderOrders();
     renderStats();
+  });
+}
+
+function listenUserOrders(uid) {
+  if (!state.firebaseReady || !uid || state.admin) {
+    state.unsubUserOrders?.();
+    state.unsubUserOrders = null;
+    state.userOrders = [];
+    return;
+  }
+
+  const { collection, onSnapshot, query, where } = services.dbApi;
+  const userOrdersQuery = query(collection(services.db, "orders"), where("userId", "==", uid));
+  state.unsubUserOrders?.();
+  state.unsubUserOrders = onSnapshot(userOrdersQuery, (snapshot) => {
+    state.userOrders = snapshot.docs
+      .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }))
+      .sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
+    renderProfile();
   });
 }
 
@@ -431,6 +494,7 @@ function renderAll() {
   renderOrders();
   renderStats();
   renderSessionControls();
+  renderProfile();
   syncCheckoutContact();
   renderCheckoutAccess();
   refreshIcons();
@@ -556,6 +620,7 @@ function renderCart() {
 
   els.cartTotal.textContent = formatMoney(total);
   els.cartCount.textContent = count;
+  renderProfile();
   renderCheckoutAccess();
   refreshIcons();
 }
@@ -570,12 +635,49 @@ function renderSessionControls() {
   }
 }
 
+function renderProfile() {
+  const user = state.user;
+  const isAdmin = Boolean(user?.isAdmin || state.admin);
+  const orders = isAdmin ? state.orders : state.userOrders;
+  const recentOrders = orders.slice(0, 4);
+
+  els.profileName.textContent = user?.username || "Гость";
+  els.profileEmail.textContent = user?.email || "Войди в аккаунт, чтобы видеть данные профиля и свои заявки.";
+  els.profileRoleLabel.textContent = isAdmin ? "admin access" : "buyer profile";
+  els.profileUsername.textContent = user?.username || "-";
+  els.profileAccess.textContent = isAdmin ? "Администратор" : "Покупатель";
+  els.profileOrdersCount.textContent = String(orders.length);
+  els.profileCartCount.textContent = String(state.cart.reduce((sum, item) => sum + item.qty, 0));
+  els.profileOrdersCaption.textContent = `${orders.length} ${plural(orders.length, ["запись", "записи", "записей"])}`;
+  els.profileOpenAdmin.hidden = !isAdmin;
+
+  els.profileOrdersList.replaceChildren();
+  if (!recentOrders.length) {
+    const empty = document.createElement("p");
+    empty.className = "filter-note";
+    empty.textContent = user ? "Заявок пока нет." : "Сначала войди в аккаунт, затем здесь появится история покупок.";
+    els.profileOrdersList.append(empty);
+    return;
+  }
+
+  recentOrders.forEach((order) => {
+    const card = document.createElement("article");
+    const items = (order.items || []).map((item) => `${item.title} x${item.qty}`).join(", ");
+    card.innerHTML = `
+      <h4>${escapeHtml(order.status === "delivered" ? "Заявка выдана" : "Новая заявка")}</h4>
+      <p>${escapeHtml(items || "Без товаров")}</p>
+      <p>${formatMoney(order.total || 0)}</p>
+    `;
+    els.profileOrdersList.append(card);
+  });
+}
+
 function renderCheckoutAccess() {
   const guest = !state.user;
   const hasItems = state.cart.length > 0;
   els.checkoutAuthLink.hidden = !guest || !hasItems;
   els.checkoutAuthLink.disabled = !state.firebaseReady;
-  els.checkoutSubmit.disabled = !hasItems;
+  els.checkoutSubmit.disabled = !hasItems || guest;
 }
 
 function syncCheckoutContact() {
@@ -597,19 +699,32 @@ function syncCheckoutContact() {
 function toggleCart(open) {
   if (open) {
     toggleAuth(false);
+    toggleProfile(false);
   }
   els.cartDrawer.classList.toggle("open", open);
   els.cartDrawer.setAttribute("aria-hidden", String(!open));
-  els.drawerPanel.style.right = open ? "0" : "-100%";
 }
 
 function toggleAuth(open) {
   state.authOpen = open;
+  if (open) {
+    toggleCart(false);
+    toggleProfile(false);
+  }
   els.authDrawer.classList.toggle("open", open);
   els.authDrawer.setAttribute("aria-hidden", String(!open));
-  els.authPanel.style.right = open ? "0" : "-100%";
   els.openAuth.classList.toggle("active", open && !state.user);
   renderSessionControls();
+}
+
+function toggleProfile(open) {
+  state.profileOpen = open;
+  if (open) {
+    toggleCart(false);
+    toggleAuth(false);
+  }
+  els.profileDrawer.classList.toggle("open", open);
+  els.profileDrawer.setAttribute("aria-hidden", String(!open));
 }
 
 async function submitOrder(event) {
@@ -801,7 +916,11 @@ async function logoutCurrentSession() {
   }
   state.pendingProfileUid = null;
   state.pendingCheckout = false;
+  state.unsubUserOrders?.();
+  state.unsubUserOrders = null;
+  state.userOrders = [];
   toggleAuth(false);
+  toggleProfile(false);
   setAdmin(false);
   setSessionUser(null);
   setCheckoutStatus("");
@@ -818,14 +937,21 @@ function setAdmin(value) {
     state.unsubOrders = null;
     state.orders = [];
   }
+  if (value) {
+    state.unsubUserOrders?.();
+    state.unsubUserOrders = null;
+    state.userOrders = [];
+  }
   syncAdminNavigation();
   renderOrders();
   renderSessionControls();
+  renderProfile();
 }
 
 function setSessionUser(user) {
   state.user = user;
   renderSessionControls();
+  renderProfile();
   syncCheckoutContact();
   renderCheckoutAccess();
 }

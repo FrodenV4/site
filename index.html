@@ -41,7 +41,9 @@
           <span id="auth-entry-text">Вход</span>
         </button>
         <div class="session-pill" id="session-pill" hidden>
-          <span id="session-label">guest</span>
+          <button class="session-open" id="open-profile" type="button" aria-label="Открыть профиль">
+            <span id="session-label">guest</span>
+          </button>
           <button class="logout-plain" id="session-logout" type="button" aria-label="Выйти" title="Выйти">
             <i data-lucide="log-out"></i>
           </button>
@@ -356,6 +358,66 @@
           </form>
 
           <div class="auth-status" id="auth-status" role="status"></div>
+        </div>
+      </div>
+    </aside>
+
+    <aside class="profile-drawer" id="profile-drawer" aria-label="Профиль" aria-hidden="true">
+      <div class="drawer-panel profile-panel">
+        <div class="drawer-head">
+          <h2>Профиль</h2>
+          <button class="icon-button" id="close-profile" type="button" aria-label="Закрыть" title="Закрыть">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+
+        <div class="profile-card">
+          <div class="profile-hero">
+            <span class="eyebrow" id="profile-role-label">account</span>
+            <h3 id="profile-name">guest</h3>
+            <p id="profile-email">Войди в аккаунт, чтобы управлять своими покупками.</p>
+          </div>
+
+          <div class="profile-stats">
+            <article>
+              <span id="profile-orders-count">0</span>
+              <small>заявок</small>
+            </article>
+            <article>
+              <span id="profile-cart-count">0</span>
+              <small>в корзине</small>
+            </article>
+          </div>
+
+          <div class="profile-meta">
+            <div>
+              <span>Логин</span>
+              <strong id="profile-username">-</strong>
+            </div>
+            <div>
+              <span>Статус</span>
+              <strong id="profile-access">Покупатель</strong>
+            </div>
+          </div>
+
+          <div class="profile-actions">
+            <button class="ghost-link wide" id="profile-open-cart" type="button">
+              <i data-lucide="shopping-bag"></i>
+              Открыть корзину
+            </button>
+            <button class="ghost-link wide" id="profile-open-admin" type="button" hidden>
+              <i data-lucide="shield-check"></i>
+              Открыть админку
+            </button>
+          </div>
+
+          <div class="profile-orders">
+            <div class="section-title">
+              <span>Последние заявки</span>
+              <small id="profile-orders-caption">0 записей</small>
+            </div>
+            <div class="profile-orders-list" id="profile-orders-list"></div>
+          </div>
         </div>
       </div>
     </aside>

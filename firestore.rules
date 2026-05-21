@@ -81,7 +81,9 @@ service cloud.firestore {
         && request.resource.data.total >= 0
         && request.resource.data.status == "new";
 
-      allow read, update, delete: if isAdmin();
+      allow read: if isAdmin()
+        || (signedIn() && resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin();
     }
   }
 }

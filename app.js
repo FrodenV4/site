@@ -53,6 +53,7 @@ const demoProducts = [
 const state = {
   firebaseReady: false,
   admin: false,
+  view: "store",
   category: "Все",
   search: "",
   sort: "new",
@@ -71,6 +72,8 @@ document.addEventListener("DOMContentLoaded", init);
 async function init() {
   cacheElements();
   bindEvents();
+  syncAdminNavigation();
+  syncViewFromHash();
   startAmbientCanvas();
   await initFirebase();
   if (!state.firebaseReady) {
@@ -112,10 +115,15 @@ function cacheElements() {
     statOrders: document.querySelector("#stat-orders"),
     modeNote: document.querySelector("#mode-note"),
     themeToggle: document.querySelector("#theme-toggle"),
+    pageViews: [...document.querySelectorAll(".page-view")],
+    navLinks: [...document.querySelectorAll(".nav-link")],
+    adminNavLink: document.querySelector(".nav-admin"),
   });
 }
 
 function bindEvents() {
+  window.addEventListener("hashchange", syncViewFromHash);
+
   els.searchInput.addEventListener("input", (event) => {
     state.search = event.target.value.trim().toLowerCase();
     renderCatalog();
@@ -146,6 +154,42 @@ function bindEvents() {
   els.adminLogout.addEventListener("click", adminLogout);
   els.productForm.addEventListener("submit", addProduct);
   els.themeToggle.addEventListener("click", () => document.body.classList.toggle("high-contrast"));
+}
+
+function syncViewFromHash() {
+  setView(getViewFromHash(window.location.hash));
+}
+
+function getViewFromHash(hash) {
+  const route = String(hash || "")
+    .replace(/^#/, "")
+    .trim()
+    .toLowerCase();
+
+  if (route === "deals") return "deals";
+  if (route === "admin") return "admin";
+  return "store";
+}
+
+function setView(view) {
+  state.view = view;
+
+  els.pageViews.forEach((page) => {
+    const active = page.dataset.view === view;
+    page.hidden = !active;
+    page.classList.toggle("is-active", active);
+  });
+
+  els.navLinks.forEach((link) => {
+    const active = link.dataset.viewLink === view;
+    link.classList.toggle("active", active);
+    if (active) link.setAttribute("aria-current", "page");
+    else link.removeAttribute("aria-current");
+  });
+}
+
+function syncAdminNavigation() {
+  els.adminNavLink.hidden = !state.admin;
 }
 
 async function initFirebase() {
@@ -458,6 +502,7 @@ function setAdmin(value) {
   els.adminContent.hidden = !value;
   els.adminLogout.hidden = !value;
   els.adminLogin.hidden = value;
+  syncAdminNavigation();
   renderOrders();
 }
 

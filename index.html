@@ -27,9 +27,9 @@
       </a>
 
       <nav class="nav" aria-label="Основная навигация">
-        <a href="#store">Витрина</a>
-        <a href="#deals">Дропы</a>
-        <a href="#admin">Админ</a>
+        <a class="nav-link" data-view-link="store" href="#store">Витрина</a>
+        <a class="nav-link" data-view-link="deals" href="#deals">Дропы</a>
+        <a class="nav-link nav-admin" data-view-link="admin" href="#admin">Админ</a>
       </nav>
 
       <div class="top-actions">
@@ -45,7 +45,8 @@
     </header>
 
     <main>
-      <section class="hero" id="store">
+      <div class="page-view page-view-store" id="store" data-view="store">
+        <section class="hero">
         <div class="hero-copy">
           <span class="eyebrow">DEV-H2JRO5 ACCESS NODE</span>
           <h1>Магазин кодов, файлов и цифровых наборов</h1>
@@ -76,170 +77,175 @@
             <p><b>access.level</b> private sale</p>
           </div>
         </div>
-      </section>
+        </section>
 
-      <section class="stats-strip" aria-label="Показатели магазина">
-        <article>
-          <span id="stat-products">0</span>
-          <small>товаров</small>
-        </article>
-        <article>
-          <span id="stat-digital">0</span>
-          <small>файлов и кодов</small>
-        </article>
-        <article>
-          <span id="stat-orders">0</span>
-          <small>заявок</small>
-        </article>
-      </section>
+        <section class="stats-strip" aria-label="Показатели магазина">
+          <article>
+            <span id="stat-products">0</span>
+            <small>товаров</small>
+          </article>
+          <article>
+            <span id="stat-digital">0</span>
+            <small>файлов и кодов</small>
+          </article>
+          <article>
+            <span id="stat-orders">0</span>
+            <small>заявок</small>
+          </article>
+        </section>
 
-      <section class="store-layout" id="catalog">
-        <aside class="filters" aria-label="Фильтры каталога">
+        <section class="store-layout" id="catalog">
+          <aside class="filters" aria-label="Фильтры каталога">
+            <div class="section-title">
+              <span>Фильтры</span>
+              <button class="text-button" id="reset-filters" type="button">Сброс</button>
+            </div>
+            <label class="search-box">
+              <i data-lucide="search"></i>
+              <input id="search-input" type="search" placeholder="Поиск товара" />
+            </label>
+            <div class="chip-row" id="category-tabs"></div>
+            <label class="field compact">
+              <span>Сортировка</span>
+              <select id="sort-select">
+                <option value="new">Новые</option>
+                <option value="priceLow">Цена: ниже</option>
+                <option value="priceHigh">Цена: выше</option>
+                <option value="name">Название</option>
+              </select>
+            </label>
+            <div class="filter-note" id="mode-note"></div>
+          </aside>
+
+          <section class="catalog-shell">
+            <div class="section-title">
+              <span>Каталог</span>
+              <small id="catalog-count">0 позиций</small>
+            </div>
+            <div class="product-grid" id="product-grid"></div>
+            <div class="empty-state" id="empty-state" hidden>
+              <i data-lucide="package-search"></i>
+              <h2>Ничего не найдено</h2>
+              <p>Измени фильтр или добавь новый товар в админ-панели.</p>
+            </div>
+          </section>
+        </section>
+      </div>
+
+      <div class="page-view" id="deals" data-view="deals" hidden>
+        <section class="deals">
           <div class="section-title">
-            <span>Фильтры</span>
-            <button class="text-button" id="reset-filters" type="button">Сброс</button>
+            <span>Горячий дроп</span>
+            <small>быстрые цифровые поставки</small>
           </div>
-          <label class="search-box">
-            <i data-lucide="search"></i>
-            <input id="search-input" type="search" placeholder="Поиск товара" />
-          </label>
-          <div class="chip-row" id="category-tabs"></div>
-          <label class="field compact">
-            <span>Сортировка</span>
-            <select id="sort-select">
-              <option value="new">Новые</option>
-              <option value="priceLow">Цена: ниже</option>
-              <option value="priceHigh">Цена: выше</option>
-              <option value="name">Название</option>
-            </select>
-          </label>
-          <div class="filter-note" id="mode-note"></div>
-        </aside>
-
-        <section class="catalog-shell">
-          <div class="section-title">
-            <span>Каталог</span>
-            <small id="catalog-count">0 позиций</small>
-          </div>
-          <div class="product-grid" id="product-grid"></div>
-          <div class="empty-state" id="empty-state" hidden>
-            <i data-lucide="package-search"></i>
-            <h2>Ничего не найдено</h2>
-            <p>Измени фильтр или добавь новый товар в админ-панели.</p>
+          <div class="deal-grid">
+            <article>
+              <i data-lucide="key-round"></i>
+              <h2>Коды</h2>
+              <p>Ключи, доступы, лицензии, промо-коды и приватные инвайты.</p>
+            </article>
+            <article>
+              <i data-lucide="file-archive"></i>
+              <h2>Файлы</h2>
+              <p>Архивы, пресеты, шаблоны, документы, ассеты и цифровые наборы.</p>
+            </article>
+            <article>
+              <i data-lucide="receipt-text"></i>
+              <h2>Заявки</h2>
+              <p>Покупатель оставляет контакты, продавец подтверждает оплату и выдачу.</p>
+            </article>
           </div>
         </section>
-      </section>
+      </div>
 
-      <section class="deals" id="deals">
-        <div class="section-title">
-          <span>Горячий дроп</span>
-          <small>быстрые цифровые поставки</small>
-        </div>
-        <div class="deal-grid">
-          <article>
-            <i data-lucide="key-round"></i>
-            <h2>Коды</h2>
-            <p>Ключи, доступы, лицензии, промо-коды и приватные инвайты.</p>
-          </article>
-          <article>
-            <i data-lucide="file-archive"></i>
-            <h2>Файлы</h2>
-            <p>Архивы, пресеты, шаблоны, документы, ассеты и цифровые наборы.</p>
-          </article>
-          <article>
-            <i data-lucide="receipt-text"></i>
-            <h2>Заявки</h2>
-            <p>Покупатель оставляет контакты, продавец подтверждает оплату и выдачу.</p>
-          </article>
-        </div>
-      </section>
-
-      <section class="admin-panel" id="admin">
-        <div class="admin-head">
-          <div>
-            <span class="eyebrow">seller console</span>
-            <h2>Админ-панель</h2>
-          </div>
-          <div class="auth-box">
-            <input id="admin-email" type="email" placeholder="email" autocomplete="username" />
-            <input id="admin-password" type="password" placeholder="password / demo PIN" autocomplete="current-password" />
-            <button class="primary-button" id="admin-login" type="button">
-              <i data-lucide="log-in"></i>
-              Войти
-            </button>
-            <button class="icon-button" id="admin-logout" type="button" aria-label="Выйти" title="Выйти" hidden>
-              <i data-lucide="log-out"></i>
-            </button>
-          </div>
-        </div>
-
-        <div class="admin-content" id="admin-content" hidden>
-          <form class="product-form" id="product-form">
-            <div class="form-grid">
-              <label class="field">
-                <span>Название</span>
-                <input name="title" required maxlength="80" placeholder="Premium Pack" />
-              </label>
-              <label class="field">
-                <span>Цена</span>
-                <input name="price" required min="0" step="1" type="number" placeholder="1490" />
-              </label>
-              <label class="field">
-                <span>Категория</span>
-                <input name="category" required maxlength="32" placeholder="Коды" />
-              </label>
-              <label class="field">
-                <span>Тип</span>
-                <select name="type">
-                  <option value="Код">Код</option>
-                  <option value="Файл">Файл</option>
-                  <option value="Набор">Набор</option>
-                  <option value="Доступ">Доступ</option>
-                </select>
-              </label>
-              <label class="field">
-                <span>Остаток</span>
-                <input name="stock" min="0" step="1" type="number" placeholder="25" />
-              </label>
-              <label class="field">
-                <span>Теги</span>
-                <input name="tags" maxlength="120" placeholder="steam, pack, instant" />
-              </label>
+      <div class="page-view page-view-admin" id="admin" data-view="admin" hidden>
+        <section class="admin-panel">
+          <div class="admin-head">
+            <div>
+              <span class="eyebrow">seller console</span>
+              <h2>Админ-панель</h2>
             </div>
-            <label class="field">
-              <span>Описание</span>
-              <textarea name="description" required maxlength="420" placeholder="Что получает покупатель"></textarea>
-            </label>
-            <div class="upload-grid">
-              <label class="upload-card">
-                <i data-lucide="image-plus"></i>
-                <span>Обложка</span>
-                <input name="cover" type="file" accept="image/*" />
-              </label>
-              <label class="upload-card">
-                <i data-lucide="file-up"></i>
-                <span>Файл товара</span>
-                <input name="file" type="file" />
-              </label>
-            </div>
-            <div class="form-actions">
-              <button class="primary-button" type="submit">
-                <i data-lucide="plus"></i>
-                Добавить товар
+            <div class="auth-box">
+              <input id="admin-email" type="email" placeholder="email" autocomplete="username" />
+              <input id="admin-password" type="password" placeholder="password / demo PIN" autocomplete="current-password" />
+              <button class="primary-button" id="admin-login" type="button">
+                <i data-lucide="log-in"></i>
+                Войти
               </button>
-              <span id="form-status" role="status"></span>
+              <button class="icon-button" id="admin-logout" type="button" aria-label="Выйти" title="Выйти" hidden>
+                <i data-lucide="log-out"></i>
+              </button>
             </div>
-          </form>
-
-          <div class="orders-panel">
-            <div class="section-title">
-              <span>Заявки</span>
-              <small id="orders-count">0</small>
-            </div>
-            <div id="orders-list" class="orders-list"></div>
           </div>
-        </div>
-      </section>
+
+          <div class="admin-content" id="admin-content" hidden>
+            <form class="product-form" id="product-form">
+              <div class="form-grid">
+                <label class="field">
+                  <span>Название</span>
+                  <input name="title" required maxlength="80" placeholder="Premium Pack" />
+                </label>
+                <label class="field">
+                  <span>Цена</span>
+                  <input name="price" required min="0" step="1" type="number" placeholder="1490" />
+                </label>
+                <label class="field">
+                  <span>Категория</span>
+                  <input name="category" required maxlength="32" placeholder="Коды" />
+                </label>
+                <label class="field">
+                  <span>Тип</span>
+                  <select name="type">
+                    <option value="Код">Код</option>
+                    <option value="Файл">Файл</option>
+                    <option value="Набор">Набор</option>
+                    <option value="Доступ">Доступ</option>
+                  </select>
+                </label>
+                <label class="field">
+                  <span>Остаток</span>
+                  <input name="stock" min="0" step="1" type="number" placeholder="25" />
+                </label>
+                <label class="field">
+                  <span>Теги</span>
+                  <input name="tags" maxlength="120" placeholder="steam, pack, instant" />
+                </label>
+              </div>
+              <label class="field">
+                <span>Описание</span>
+                <textarea name="description" required maxlength="420" placeholder="Что получает покупатель"></textarea>
+              </label>
+              <div class="upload-grid">
+                <label class="upload-card">
+                  <i data-lucide="image-plus"></i>
+                  <span>Обложка</span>
+                  <input name="cover" type="file" accept="image/*" />
+                </label>
+                <label class="upload-card">
+                  <i data-lucide="file-up"></i>
+                  <span>Файл товара</span>
+                  <input name="file" type="file" />
+                </label>
+              </div>
+              <div class="form-actions">
+                <button class="primary-button" type="submit">
+                  <i data-lucide="plus"></i>
+                  Добавить товар
+                </button>
+                <span id="form-status" role="status"></span>
+              </div>
+            </form>
+
+            <div class="orders-panel">
+              <div class="section-title">
+                <span>Заявки</span>
+                <small id="orders-count">0</small>
+              </div>
+              <div id="orders-list" class="orders-list"></div>
+            </div>
+          </div>
+        </section>
+      </div>
     </main>
 
     <aside class="cart-drawer" id="cart-drawer" aria-label="Корзина" aria-hidden="true">

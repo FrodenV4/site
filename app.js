@@ -10,6 +10,7 @@ const firebaseConfig = {
 
 const USERNAME_PATTERN = /^[a-z0-9._-]{3,24}$/;
 const INTERNAL_AUTH_DOMAIN = "codeshop.user";
+const ADMIN_PANEL_TOKEN = "HASH#root";
 const THEME_STORAGE_KEY = "codeshop_theme";
 const ADMIN_EMAILS = ["rootadmin@codeshop.user"];
 const THEME_PRESETS = {
@@ -80,6 +81,7 @@ const demoProducts = [
 const state = {
   firebaseReady: false,
   admin: false,
+  adminUnlocked: false,
   user: null,
   view: "store",
   authOpen: false,
@@ -150,8 +152,7 @@ function cacheElements() {
     checkoutStatus: document.querySelector("#checkout-status"),
     checkoutAuthLink: document.querySelector("#checkout-auth-link"),
     checkoutSubmit: document.querySelector("#checkout-form button[type='submit']"),
-    adminEmail: document.querySelector("#admin-email"),
-    adminPassword: document.querySelector("#admin-password"),
+    adminToken: document.querySelector("#admin-token"),
     adminLogin: document.querySelector("#admin-login"),
     adminLogout: document.querySelector("#admin-logout"),
     adminContent: document.querySelector("#admin-content"),
@@ -433,6 +434,12 @@ function isAdminAccount(firebaseUser, adminDocExists = false) {
   return adminDocExists || ADMIN_EMAILS.includes(email);
 }
 
+function getAdminDisplayName(firebaseUser) {
+  const email = String(firebaseUser?.email || "").trim().toLowerCase();
+  if (email === "rootadmin@codeshop.user") return "rootAdmin";
+  return firebaseUser?.email || "admin";
+}
+
 async function initFirebase() {
   if (!isFirebaseConfigured()) {
     state.firebaseReady = false;
@@ -469,6 +476,7 @@ async function handleAuthState(firebaseUser) {
     state.unsubUserOrders?.();
     state.unsubUserOrders = null;
     state.userOrders = [];
+    state.adminUnlocked = false;
     setAdmin(false);
     setSessionUser(null);
     return;
@@ -506,7 +514,7 @@ async function handleAuthState(firebaseUser) {
     setAdmin(true);
     setSessionUser({
       uid: firebaseUser.uid,
-      username: firebaseUser.email || "admin",
+      username: getAdminDisplayName(firebaseUser),
       email: firebaseUser.email || "",
       theme: readStoredTheme(),
       isAdmin: true,
@@ -520,6 +528,7 @@ async function handleAuthState(firebaseUser) {
   }
 
   await services.authApi.signOut(services.auth);
+  state.adminUnlocked = false;
   setAdmin(false);
   setSessionUser(null);
   setAuthStatus("Аккаунт не настроен. Повтори вход или регистрацию.", true);
@@ -772,7 +781,7 @@ function renderProfile() {
   if (guest) {
     els.profileSettingsNote.textContent = "Войди в аккаунт, чтобы менять логин и пароль. Тему можно переключать уже сейчас.";
   } else if (isAdmin) {
-    els.profileSettingsNote.textContent = "Админ-доступ закреплен за этим email. Здесь можно менять пароль и тему интерфейса.";
+    els.profileSettingsNote.textContent = "Панель продавца открывается по статичному токену HASH#root. Здесь можно менять пароль и тему интерфейса.";
   } else {
     els.profileSettingsNote.textContent = "После смены логина вход в аккаунт будет выполняться уже по новому логину.";
   }
@@ -1106,31 +1115,37 @@ async function updatePasswordSettings(event) {
 }
 
 async function adminLogin() {
-  const email = els.adminEmail.value.trim();
-  const password = els.adminPassword.value.trim();
+  const token = els.adminToken.value.trim();
 
-  if (state.firebaseReady) {
-    try {
-      await services.authApi.signInWithEmailAndPassword(services.auth, email, password);
-      setFormStatus("Вход выполнен.");
-    } catch (error) {
-      console.error(error);
-      setFormStatus("Не удалось войти. Проверь email/password.", true);
-    }
+  if (!state.user?.isAdmin) {
+    setFormStatus("Сначала войди в аккаунт rootAdmin.", true);
     return;
   }
 
-  if (password === "demo") {
+  if (state.firebaseReady) {
+    if (token !== ADMIN_PANEL_TOKEN) {
+      setFormStatus("Неверный токен доступа.", true);
+      return;
+    }
+    state.adminUnlocked = true;
+    syncAdminAccessState();
+    setFormStatus("Панель продавца активирована.");
+    return;
+  }
+
+  if (token === ADMIN_PANEL_TOKEN) {
     setAdmin(true);
+    state.adminUnlocked = true;
+    syncAdminAccessState();
     setSessionUser({
       uid: "demo-admin",
       username: "admin",
-      email,
+      email: "demo@codeshop.user",
       isAdmin: true,
     });
     setFormStatus("Demo-админка активна.");
   } else {
-    setFormStatus("Для demo-режима пароль: demo", true);
+    setFormStatus("Неверный токен доступа.", true);
   }
 }
 
@@ -1144,6 +1159,7 @@ async function logoutCurrentSession() {
   }
   state.pendingProfileUid = null;
   state.pendingCheckout = false;
+  state.adminUnlocked = false;
   state.unsubUserOrders?.();
   state.unsubUserOrders = null;
   state.userOrders = [];
@@ -1158,13 +1174,12 @@ async function logoutCurrentSession() {
 
 function setAdmin(value) {
   state.admin = value;
-  els.adminContent.hidden = !value;
-  els.adminLogout.hidden = !value;
-  els.adminLogin.hidden = value;
+  syncAdminAccessState();
   if (!value) {
     state.unsubOrders?.();
     state.unsubOrders = null;
     state.orders = [];
+    state.adminUnlocked = false;
   }
   if (value) {
     state.unsubUserOrders?.();
@@ -1175,6 +1190,15 @@ function setAdmin(value) {
   renderOrders();
   renderSessionControls();
   renderProfile();
+}
+
+function syncAdminAccessState() {
+  const canOpen = Boolean(state.admin);
+  const unlocked = canOpen && state.adminUnlocked;
+  els.adminContent.hidden = !unlocked;
+  els.adminLogout.hidden = !unlocked;
+  els.adminLogin.hidden = unlocked;
+  els.adminToken.hidden = unlocked;
 }
 
 function setSessionUser(user) {
@@ -1217,7 +1241,7 @@ function handlePostAuthSuccess() {
 
 async function addProduct(event) {
   event.preventDefault();
-  if (!state.admin) return;
+  if (!state.admin || !state.adminUnlocked) return;
   setFormStatus("Добавляю товар...");
 
   const formData = new FormData(els.productForm);
@@ -1359,6 +1383,7 @@ function renderOrders() {
 }
 
 async function downloadOrderFiles(order) {
+  if (!state.admin || !state.adminUnlocked) return;
   if (!state.firebaseReady) {
     setFormStatus("В demo-режиме файл хранится только локально в браузере.", true);
     return;
@@ -1389,6 +1414,7 @@ async function downloadFirestoreFile(productId) {
 }
 
 async function markOrderDone(orderId) {
+  if (!state.admin || !state.adminUnlocked) return;
   if (state.firebaseReady) {
     const { doc, serverTimestamp, updateDoc } = services.dbApi;
     await updateDoc(doc(services.db, "orders", orderId), {

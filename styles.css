@@ -1261,6 +1261,24 @@ main {
   margin-top: 8px;
 }
 
+.order-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.order-actions .text-button[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.profile-orders-list button {
+  margin-top: 10px;
+}
+
 .cart-drawer,
 .auth-drawer,
 .profile-drawer,

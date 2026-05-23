@@ -58,6 +58,11 @@ service cloud.firestore {
         && value.size() <= 260;
     }
 
+    function hasDownloadGrant(productId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid)/downloads/$(productId));
+    }
+
     match /admins/{uid} {
       allow read: if signedIn() && request.auth.uid == uid;
       allow write: if false;
@@ -76,6 +81,11 @@ service cloud.firestore {
         && request.resource.data.createdAt == resource.data.createdAt
         && validUserProfile(request.resource.data);
       allow delete: if false;
+
+      match /downloads/{productId} {
+        allow read: if signedIn() && request.auth.uid == uid;
+        allow write: if isAdmin();
+      }
     }
 
     match /products/{productId} {
@@ -89,10 +99,12 @@ service cloud.firestore {
     }
 
     match /productFiles/{productId} {
-      allow read, write: if isAdmin();
+      allow read: if isAdmin() || hasDownloadGrant(productId);
+      allow write: if isAdmin();
 
       match /chunks/{chunkId} {
-        allow read, write: if isAdmin();
+        allow read: if isAdmin() || hasDownloadGrant(productId);
+        allow write: if isAdmin();
       }
     }
 

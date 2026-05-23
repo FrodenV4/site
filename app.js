@@ -1016,13 +1016,27 @@ function renderProfile() {
   recentOrders.forEach((order) => {
     const card = document.createElement("article");
     const items = (order.items || []).map((item) => `${item.title} x${item.qty}`).join(", ");
+    const canReceive = !isAdmin && order.status === "delivered" && orderHasStoredFiles(order);
     card.innerHTML = `
       <h4>${escapeHtml(order.status === "delivered" ? "Заявка выдана" : "Новая заявка")}</h4>
       <p>${escapeHtml(items || "Без товаров")}</p>
       <p>${formatMoney(order.total || 0)}</p>
+      <p>${escapeHtml(order.status === "delivered" ? "Файлы доступны для получения." : "Ожидает выдачи продавцом.")}</p>
     `;
+
+    if (canReceive) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "text-button wide";
+      button.innerHTML = '<i data-lucide="download"></i> Получить товар';
+      button.addEventListener("click", () => downloadOrderFiles(order, { source: "profile" }));
+      card.append(button);
+    }
+
     els.profileOrdersList.append(card);
   });
+
+  refreshIcons();
 }
 
 function renderCheckoutAccess() {
@@ -1646,37 +1660,79 @@ function renderOrders() {
     card.className = "order-card";
     const items = (order.items || []).map((item) => `${item.title} x${item.qty}`).join(", ");
     const headline = order.username ? `${order.username} | ${order.contact || "Без контакта"}` : order.contact || "Без контакта";
+    const hasFiles = orderHasStoredFiles(order);
+    const done = order.status === "delivered";
     card.innerHTML = `
       <h3>${escapeHtml(headline)}</h3>
       <p>${escapeHtml(items || "Без товаров")}</p>
       <p>${formatMoney(order.total || 0)} | ${escapeHtml(order.status || "new")}</p>
       <p>${escapeHtml(order.comment || "")}</p>
-      <button class="text-button download-files" type="button">Скачать файлы</button>
-      <button class="text-button" type="button">Отметить как выдано</button>
+      <div class="order-actions">
+        <button class="text-button download-files" type="button"${hasFiles ? "" : " disabled"}>${hasFiles ? "Скачать файлы" : "Нет файла"}</button>
+        <button class="text-button mark-delivered" type="button"${done ? " disabled" : ""}>${done ? "Уже выдано" : "Выдать товар"}</button>
+      </div>
     `;
-    card.querySelector(".download-files").addEventListener("click", () => downloadOrderFiles(order));
-    card.querySelector("button:not(.download-files)").addEventListener("click", () => markOrderDone(order.id));
+    card.querySelector(".download-files").addEventListener("click", () => downloadOrderFiles(order, { source: "admin" }));
+    card.querySelector(".mark-delivered").addEventListener("click", () => markOrderDone(order));
     els.ordersList.append(card);
   });
 }
 
-async function downloadOrderFiles(order) {
-  if (!state.admin || !state.adminUnlocked) return;
-  if (!state.firebaseReady) {
-    setFormStatus("В demo-режиме файл хранится только локально в браузере.", true);
+async function downloadOrderFiles(order, options = {}) {
+  const source = options.source || "admin";
+  const fromProfile = source === "profile";
+  const userAccess = Boolean(state.user && !state.user.isAdmin && order?.userId === state.user.uid && order?.status === "delivered");
+  const adminAccess = Boolean(state.admin && state.adminUnlocked);
+
+  if (!adminAccess && !userAccess) {
+    if (fromProfile) setProfileStatus("Файлы станут доступны после выдачи заказа продавцом.", true);
+    else setFormStatus("Сначала активируй админ-панель или дождись выдачи заказа.", true);
     return;
   }
 
-  const productIds = [...new Set((order.items || []).map((item) => item.productId).filter(Boolean))];
-  for (const productId of productIds) {
-    await downloadFirestoreFile(productId);
+  if (!state.firebaseReady) {
+    const message = "В demo-режиме цифровой файл не хранится для повторной выдачи.";
+    if (fromProfile) setProfileStatus(message, true);
+    else setFormStatus(message, true);
+    return;
   }
+
+  const productIds = getDownloadableProductIds(order);
+  if (!productIds.length) {
+    const message = "Для этого заказа нет прикрепленных файлов. Такой товар выдается вручную.";
+    if (fromProfile) setProfileStatus(message, true);
+    else setFormStatus(message, true);
+    return;
+  }
+
+  let downloaded = 0;
+
+  try {
+    for (const productId of productIds) {
+      // eslint-disable-next-line no-await-in-loop
+      const success = await downloadFirestoreFile(productId);
+      if (success) downloaded += 1;
+    }
+  } catch (error) {
+    console.error(error);
+    const message = "Не удалось получить файл. Обнови страницу и попробуй снова.";
+    if (fromProfile) setProfileStatus(message, true);
+    else setFormStatus(message, true);
+    return;
+  }
+
+  const message = downloaded
+    ? `Готово. Загружено ${downloaded} ${plural(downloaded, ["файл", "файла", "файлов"])}.`
+    : "Не удалось получить файл. Попробуй еще раз.";
+
+  if (fromProfile) setProfileStatus(message, downloaded === 0);
+  else setFormStatus(message, downloaded === 0);
 }
 
 async function downloadFirestoreFile(productId) {
   const { collection, doc, getDoc, getDocs, orderBy, query } = services.dbApi;
   const metaSnap = await getDoc(doc(services.db, "productFiles", productId));
-  if (!metaSnap.exists()) return;
+  if (!metaSnap.exists()) return false;
 
   const meta = metaSnap.data();
   const chunksSnap = await getDocs(query(collection(services.db, "productFiles", productId, "chunks"), orderBy("index", "asc")));
@@ -1688,23 +1744,46 @@ async function downloadFirestoreFile(productId) {
   link.href = url;
   link.download = meta.name || "digital-file";
   link.click();
-  URL.revokeObjectURL(url);
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+  return true;
 }
 
-async function markOrderDone(orderId) {
+async function markOrderDone(order) {
   if (!state.admin || !state.adminUnlocked) return;
+  const orderId = order?.id;
+  if (!orderId) return;
+
   if (state.firebaseReady) {
-    const { doc, serverTimestamp, updateDoc } = services.dbApi;
+    const { doc, serverTimestamp, setDoc, updateDoc } = services.dbApi;
+    const productIds = [...new Set((order.items || []).map((item) => item.productId).filter(Boolean))];
+
+    for (const productId of productIds) {
+      const product = state.products.find((item) => item.id === productId);
+      if (!product?.fileStored) continue;
+      // eslint-disable-next-line no-await-in-loop
+      await setDoc(doc(services.db, "users", order.userId, "downloads", productId), {
+        productId,
+        orderId,
+        title: product.title,
+        fileName: product.fileName || "",
+        grantedTo: order.userId,
+        grantedAt: serverTimestamp(),
+      });
+    }
+
     await updateDoc(doc(services.db, "orders", orderId), {
       status: "delivered",
+      deliveredAt: serverTimestamp(),
       updatedAt: serverTimestamp(),
     });
+    setFormStatus("Товар выдан. Покупатель уже может получить файлы.");
     return;
   }
 
-  state.orders = state.orders.map((order) => (order.id === orderId ? { ...order, status: "delivered" } : order));
+  state.orders = state.orders.map((entry) => (entry.id === orderId ? { ...entry, status: "delivered" } : entry));
   writeJson("nv_orders", state.orders);
   renderOrders();
+  setFormStatus("Demo-заказ отмечен как выданный.");
 }
 
 function renderStats() {
@@ -1712,6 +1791,18 @@ function renderStats() {
   els.statProducts.textContent = String(activeProducts.length);
   els.statDigital.textContent = String(activeProducts.filter((item) => ["Код", "Файл", "Набор", "Доступ"].includes(item.type)).length);
   els.statOrders.textContent = String(state.orders.length);
+}
+
+function getDownloadableProductIds(order) {
+  return [...new Set((order?.items || []).map((item) => item.productId).filter(Boolean))]
+    .filter((productId) => {
+      const product = state.products.find((item) => item.id === productId);
+      return Boolean(product?.fileStored);
+    });
+}
+
+function orderHasStoredFiles(order) {
+  return getDownloadableProductIds(order).length > 0;
 }
 
 function normalizeProduct(product) {
